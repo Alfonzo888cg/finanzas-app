@@ -71,9 +71,6 @@ tr:last-child td{border-bottom:none}
 .b-gas{background:var(--red-bg);color:var(--red)}
 .b-bci{background:var(--blue-bg);color:var(--blue)}
 .b-itau{background:var(--red-bg);color:var(--red)}
-.b-inv{background:var(--green-bg);color:var(--green)}
-.b-res{background:var(--red-bg);color:var(--red)}
-.b-tra{background:var(--blue-bg);color:var(--blue)}
 .amt-ing{color:var(--green);font-weight:500}
 .amt-gas{color:var(--red);font-weight:500}
 .btn-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px;border-radius:4px}
@@ -105,18 +102,6 @@ tr:last-child td{border-bottom:none}
 .cuota-row:nth-child(odd){background:var(--bg)}
 .cuota-sub{display:flex;justify-content:space-between;padding:8px 10px;font-size:14px;font-weight:600;border-top:1px solid var(--border);margin-top:4px}
 .sec-sub{font-size:12px;font-weight:500;color:var(--muted);margin:1rem 0 .5rem;text-transform:uppercase;letter-spacing:.5px}
-.inv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}
-.inv-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem}
-.inv-stat-label{font-size:12px;color:var(--muted);margin-bottom:4px}
-.inv-stat-value{font-size:20px;font-weight:600}
-.inv-stat-sub{font-size:12px;color:var(--muted);margin-top:2px}
-.fondo-box{background:var(--bg);border-radius:8px;padding:1rem;margin-bottom:.5rem}
-.sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:1rem 0}
-.sc-item{background:var(--surface);border-radius:8px;padding:8px 12px;border:1px solid var(--border)}
-.vc-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px}
-.vc-row:last-child{border-bottom:none}
-.mov-item{display:flex;justify-content:space-between;align-items:center;padding:9px 10px;font-size:13px;border-bottom:.5px solid var(--border)}
-.mov-item:last-child{border-bottom:none}
 @media(max-width:580px){
   .metrics{grid-template-columns:1fr 1fr}
   .metrics .metric:last-child{grid-column:span 2}
@@ -124,8 +109,6 @@ tr:last-child td{border-bottom:none}
   .charts-grid{grid-template-columns:1fr}
   .tdc-grid{grid-template-columns:1fr}
   .timeline{grid-template-columns:repeat(3,1fr)}
-  .inv-grid{grid-template-columns:1fr 1fr}
-  .sc-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -133,11 +116,11 @@ tr:last-child td{border-bottom:none}
 
 <div id="loading">
   <div id="loading-inner">
-    <div id="loading-msg">Cargando...</div>
+    <div id="loading-msg">Conectando con GitHub...</div>
     <div id="loading-error"></div>
-    <div id="loading-btns" style="display:none;gap:8px;justify-content:center">
-      <button onclick="showSetup()" style="padding:9px 20px;background:var(--text);color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer">Reconfigurar</button>
-      <button onclick="startApp()" style="padding:9px 20px;background:transparent;border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer">Reintentar</button>
+    <div id="loading-btns" style="display:none;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button onclick="showSetup()" style="padding:9px 20px;background:var(--text);color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer">Reconfigurar token</button>
+      <button onclick="startApp()" style="padding:9px 20px;background:transparent;border:1px solid #ccc;border-radius:8px;font-size:13px;cursor:pointer">Reintentar</button>
     </div>
   </div>
 </div>
@@ -167,7 +150,6 @@ tr:last-child td{border-bottom:none}
     <button class="tab" onclick="showTab('nuevo')">Nuevo</button>
     <button class="tab" onclick="showTab('historial')">Historial</button>
     <button class="tab" onclick="showTab('tdc')">Tarjetas</button>
-    <button class="tab" onclick="showTab('inv')">Inversiones</button>
   </div>
 
   <div id="tab-dashboard" class="section active">
@@ -244,77 +226,39 @@ tr:last-child td{border-bottom:none}
       <div class="sec-sub" style="margin-top:1rem">ITAU</div><div class="plist" id="pl-itau"></div>
     </div>
   </div>
-
-  <div id="tab-inv" class="section">
-    <div class="inv-grid" id="inv-stats"></div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Fondos activos</span><button class="btn-sm" onclick="toggleXform('if')">+ Movimiento</button></div>
-      <div class="xform" id="if">
-        <div class="form-grid">
-          <div class="form-group"><label>Fecha</label><input type="date" id="if-f"></div>
-          <div class="form-group"><label>Tipo</label><select id="if-t"><option value="Inversion">Inversion (aporte)</option><option value="Rescate">Rescate (retiro)</option><option value="Traspaso">Traspaso</option></select></div>
-          <div class="form-group"><label>Fondo</label><select id="if-fo"><option>Itau Cartera Reserva</option><option>Otro fondo</option></select></div>
-          <div class="form-group"><label>Subcuenta</label><select id="if-sc"><option value="0">0</option><option value="1">1</option></select></div>
-          <div class="form-group"><label>Monto ($)</label><input type="number" id="if-m" placeholder="0"></div>
-          <div class="form-group"><label>N cuotas</label><input type="number" id="if-c" placeholder="0" step="0.0001"></div>
-          <div class="form-group"><label>Valor cuota</label><input type="number" id="if-vc" placeholder="0" step="0.0001"></div>
-          <div class="form-group"><label>Saldo total nuevo (opcional)</label><input type="number" id="if-sn" placeholder="Ej: 3500000"></div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:.75rem">
-          <button class="btn-save" onclick="saveMovInv()">Guardar</button>
-          <button class="btn-sec" onclick="toggleXform('if')">Cancelar</button>
-        </div>
-        <div class="msg" id="if-msg"></div>
-      </div>
-      <div id="inv-fondos"></div>
-    </div>
-    <div class="card"><div class="card-header"><span class="card-title">Historial de movimientos</span></div><div id="inv-movs"></div></div>
-  </div>
 </div>
 
 <script>
 const MN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const MF=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 let txType='Ingreso';
-let D=null,T=null,I=null;
+let D=null,T=null;
 let barC=null,pieC=null;
 let gc=null;
-let sha={d:null,t:null,i:null};
+let sha={d:null,t:null};
 
 function fmt(n){return '$'+Math.round(Math.abs(n)).toLocaleString('es-CL')}
-function gh(path){return 'https://api.github.com/repos/'+gc.user+'/'+gc.repo+'/contents/'+path}
+function gh(p){return 'https://api.github.com/repos/'+gc.user+'/'+gc.repo+'/contents/'+p}
 function ghH(){return{'Authorization':'token '+gc.token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'}}
-
-function setSync(s){
-  document.getElementById('sdot').className='sync-dot'+(s=='syncing'?' syncing':s=='error'?' error':'');
-  document.getElementById('slabel').textContent=s=='syncing'?'Guardando...':s=='error'?'Error':'OK';
-}
+function setSync(s){document.getElementById('sdot').className='sync-dot'+(s=='syncing'?' syncing':s=='error'?' error':'');document.getElementById('slabel').textContent=s=='syncing'?'Guardando...':s=='error'?'Error':'OK';}
 
 async function ghGet(file){
   const r=await fetch(gh(file),{headers:ghH()});
   if(r.status==404)return null;
-  if(r.status==401)throw new Error('Token invalido. Borra la config y vuelve a ingresar el token.');
-  if(!r.ok)throw new Error('GitHub error '+r.status+' en '+file);
-  const j=await r.json();
-  return j;
+  if(r.status==401)throw new Error('Token invalido. Usa el boton Reconfigurar.');
+  if(!r.ok)throw new Error('GitHub '+r.status+' al leer '+file);
+  return r.json();
 }
-
 async function ghPut(file,data,curSha,msg){
-  const str=JSON.stringify(data,null,2);
-  const b64=btoa(unescape(encodeURIComponent(str)));
-  const body={message:msg,content:b64};
+  const body={message:msg,content:btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2))))};
   if(curSha)body.sha=curSha;
   const r=await fetch(gh(file),{method:'PUT',headers:ghH(),body:JSON.stringify(body)});
-  if(!r.ok)throw new Error('Error guardando '+file+': '+r.status);
-  const j=await r.json();
-  return j.content.sha;
+  if(!r.ok)throw new Error('Error guardando '+file+' ('+r.status+')');
+  return(await r.json()).content.sha;
 }
 
 function loadCfg(){try{return JSON.parse(localStorage.getItem('gh_cfg'));}catch{return null;}}
-function showSetup(){
-  document.getElementById('loading').style.display='none';
-  document.getElementById('setup-screen').style.display='flex';
-}
+function showSetup(){document.getElementById('loading').style.display='none';document.getElementById('setup-screen').style.display='flex';}
 function saveConfig(){
   const t=document.getElementById('cfg-token').value.trim();
   const u=document.getElementById('cfg-user').value.trim();
@@ -326,49 +270,28 @@ function saveConfig(){
   startApp();
 }
 
-function setLoadMsg(m){document.getElementById('loading-msg').textContent=m;}
-function showLoadError(e){
-  document.getElementById('loading-error').textContent=e;
-  document.getElementById('loading-error').style.display='block';
-  document.getElementById('loading-btns').style.display='flex';
-}
-
 async function startApp(){
   document.getElementById('loading').style.display='flex';
   document.getElementById('loading-error').style.display='none';
   document.getElementById('loading-btns').style.display='none';
+  document.getElementById('loading-msg').textContent='Conectando con GitHub...';
   try{
-    setLoadMsg('Conectando con GitHub...');
     const md=await ghGet('data.json');
-    if(md){sha.d=md.sha;setLoadMsg('Leyendo transacciones...');D=JSON.parse(atob(md.content.replace(/
-/g,'')));}
-    else{throw new Error('No se encontro data.json en el repo finanzas-data');}
-    setLoadMsg('Listo');
+    if(!md)throw new Error('No se encontro data.json en el repo "'+gc.repo+'". Verifica que el archivo existe.');
+    sha.d=md.sha;
+    document.getElementById('loading-msg').textContent='Cargando datos...';
+    D=JSON.parse(atob(md.content.replace(/
+/g,'')));
     document.getElementById('loading').style.display='none';
     document.getElementById('app').style.display='block';
     initUI();
   }catch(e){
-    setLoadMsg('');
-    showLoadError(e.message);
+    document.getElementById('loading-msg').textContent='';
+    document.getElementById('loading-error').textContent=e.message;
+    document.getElementById('loading-error').style.display='block';
+    document.getElementById('loading-btns').style.display='flex';
   }
 }
-
-async function loadTDC(){
-  const m=await ghGet('tdc_data.json');
-  if(m){sha.t=m.sha;T=JSON.parse(atob(m.content.replace(/
-/g,'')));}
-  else{T={compras:[],cupos:{BCI:{nacional:4320000},ITAU:{nacional:3400000}},last_id:0};sha.t=await ghPut('tdc_data.json',T,null,'init tdc');}
-}
-async function loadInv(){
-  const m=await ghGet('inv_data.json');
-  if(m){sha.i=m.sha;I=JSON.parse(atob(m.content.replace(/
-/g,'')));}
-  else{I={fondos:[],movimientos:[],resumen:{saldo_inicial_mar:2828101,fecha_actualizacion:'2026-04-07',total_aportes_propios:650000},last_id:0};sha.i=await ghPut('inv_data.json',I,null,'init inv');}
-}
-
-async function saveD(){setSync('syncing');sha.d=await ghPut('data.json',D,sha.d,'update data');setSync('ok');}
-async function saveT(){setSync('syncing');sha.t=await ghPut('tdc_data.json',T,sha.t,'update tdc');setSync('ok');}
-async function saveI(){setSync('syncing');sha.i=await ghPut('inv_data.json',I,sha.i,'update inv');setSync('ok');}
 
 window.addEventListener('load',()=>{
   gc=loadCfg();
@@ -405,17 +328,21 @@ function setType(t){
   document.getElementById('f-cat').innerHTML=D.categories[t=='Ingreso'?'ingreso':'gasto'].map(c=>'<option>'+c+'</option>').join('');
 }
 function showTab(n){
-  ['dashboard','nuevo','historial','tdc','inv'].forEach((t,i)=>{
+  ['dashboard','nuevo','historial','tdc'].forEach((t,i)=>{
     document.getElementById('tab-'+t).classList.toggle('active',t==n);
     document.querySelectorAll('.tab')[i].classList.toggle('active',t==n);
   });
   if(n=='historial'){fillHCats();renderHist();}
   if(n=='dashboard')renderDash();
-  if(n=='tdc'){if(!T)loadTDC().then(renderTDC);else renderTDC();}
-  if(n=='inv'){if(!I)loadInv().then(renderInv);else renderInv();}
+  if(n=='tdc'){if(!T)loadTDC().then(()=>renderTDC());else renderTDC();}
 }
-function toggleXform(id){document.getElementById(id).classList.toggle('open');if(document.getElementById(id).classList.contains('open')&&id=='cf'){const h=new Date();document.getElementById('cf-mi').value=h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0');}if(document.getElementById(id).classList.contains('open')&&id=='if'){document.getElementById('if-f').value=new Date().toISOString().split('T')[0];}}
-
+function toggleXform(id){
+  document.getElementById(id).classList.toggle('open');
+  if(document.getElementById(id).classList.contains('open')&&id=='cf'){
+    const h=new Date();
+    document.getElementById('cf-mi').value=h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0');
+  }
+}
 function getTx(yr,mo,tp,ct){
   return D.transactions.filter(t=>{
     const[ty,tm]=t.date.split('-');
@@ -426,7 +353,6 @@ function getTx(yr,mo,tp,ct){
     return true;
   });
 }
-
 function renderDash(){
   const mo=document.getElementById('d-month').value;
   const yr=document.getElementById('d-year').value||new Date().getFullYear().toString();
@@ -455,23 +381,32 @@ function renderPie(fx){
   if(pieC)pieC.destroy();
   pieC=new Chart(document.getElementById('pieChart'),{type:'doughnut',data:{labels:lbls,datasets:[{data:lbls.map(l=>cats[l]),backgroundColor:clrs,borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10,padding:6}}}}});
 }
-
 async function addTx(){
   const date=document.getElementById('f-date').value;
   const amount=parseFloat(document.getElementById('f-amount').value);
   const cat=document.getElementById('f-cat').value;
   const desc=document.getElementById('f-desc').value.trim();
-  if(!date||!amount||amount<=0){showFMsg('Completa fecha y monto',false);return;}
+  if(!date||!amount||amount<=0){showMsg('form-msg','Completa fecha y monto',false);return;}
   const btn=document.getElementById('btn-save');btn.disabled=true;
   D.last_id=(D.last_id||0)+1;
   D.transactions.unshift({id:D.last_id,date,description:desc||cat,category:cat,amount,type:txType});
-  try{await saveD();fillYears();fillMonths();renderDash();renderHist();showFMsg('Guardado',true);document.getElementById('f-amount').value='';document.getElementById('f-desc').value='';}
-  catch(e){showFMsg('Error: '+e.message,false);setSync('error');}
+  try{
+    setSync('syncing');
+    sha.d=await ghPut('data.json',D,sha.d,'update data');
+    setSync('ok');
+    fillYears();fillMonths();renderDash();renderHist();
+    showMsg('form-msg','Guardado',true);
+    document.getElementById('f-amount').value='';
+    document.getElementById('f-desc').value='';
+  }catch(e){showMsg('form-msg','Error: '+e.message,false);setSync('error');}
   btn.disabled=false;
 }
-function showFMsg(m,ok){const e=document.getElementById('form-msg');e.textContent=m;e.className='msg '+(ok?'ok':'err');setTimeout(()=>{e.className='msg';},3000);}
-async function delTx(id){if(!confirm('Eliminar?'))return;D.transactions=D.transactions.filter(t=>t.id!=id);await saveD();fillYears();renderDash();renderHist();}
-
+async function delTx(id){
+  if(!confirm('Eliminar esta transaccion?'))return;
+  D.transactions=D.transactions.filter(t=>t.id!=id);
+  setSync('syncing');sha.d=await ghPut('data.json',D,sha.d,'delete tx');setSync('ok');
+  fillYears();renderDash();renderHist();
+}
 function renderHist(){
   const yr=document.getElementById('h-year').value;
   const mo=document.getElementById('h-month').value;
@@ -494,6 +429,13 @@ function exportXLS(){
 
 // TDC
 let tdcMes='2026-04';
+async function loadTDC(){
+  const m=await ghGet('tdc_data.json');
+  if(m){sha.t=m.sha;T=JSON.parse(atob(m.content.replace(/
+/g,'')));}
+  else{T={compras:[],cupos:{BCI:{nacional:4320000},ITAU:{nacional:3400000}},last_id:0};sha.t=await ghPut('tdc_data.json',T,null,'init tdc');}
+}
+async function saveT(){setSync('syncing');sha.t=await ghPut('tdc_data.json',T,sha.t,'update tdc');setSync('ok');}
 function getCuotasMes(mes){return(T.compras||[]).filter(c=>c.activa).map(c=>{const q=(c.cuotas||[]).find(x=>x.mes==mes);return q?{...c,mm:q.monto}:null;}).filter(Boolean);}
 function cuotasRest(c){return(c.cuotas||[]).filter(q=>q.mes>=tdcMes).length;}
 function montoTot(c){return(c.cuotas||[]).filter(q=>q.mes>=tdcMes).reduce((s,q)=>s+q.monto,0);}
@@ -530,8 +472,7 @@ function renderTDCMes(){
   el.innerHTML=h;
 }
 function renderTDCTL(){
-  const[y,m]=tdcMes.split('-').map(Number);
-  let h='';
+  const[y,m]=tdcMes.split('-').map(Number);let h='';
   for(let i=0;i<9;i++){
     const d=new Date(y,m-1+i,1);
     const ms=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
@@ -569,50 +510,11 @@ async function saveCuota(){
   T.compras.push({id:'c'+T.last_id,descripcion:des,tarjeta:tar,cuotas,activa:true,recurrente:rec});
   await saveT();renderTDC();toggleXform('cf');showMsg('cf-msg','Guardado',true);
 }
-async function delCuota(id){if(!confirm('Eliminar?'))return;const c=T.compras.find(x=>x.id==id);if(c)c.activa=false;await saveT();renderTDC();}
-
-// INV
-function renderInv(){renderInvStats();renderInvFondos();renderInvMovs();}
-function renderInvStats(){
-  const tot=(I.fondos||[]).filter(f=>f.activo).reduce((s,f)=>s+f.saldo_total,0);
-  const tc=(I.fondos||[]).filter(f=>f.activo).reduce((s,f)=>s+f.subcuentas.reduce((ss,sc)=>ss+sc.cuotas,0),0);
-  const gan=tot-(I.resumen.saldo_inicial_mar||0)-(I.resumen.total_aportes_propios||0);
-  const pct=((I.resumen.saldo_inicial_mar||1)+( I.resumen.total_aportes_propios||0))>0?((gan/((I.resumen.saldo_inicial_mar||1)+(I.resumen.total_aportes_propios||0)))*100).toFixed(2):0;
-  document.getElementById('inv-stats').innerHTML=
-    '<div class="inv-stat"><div class="inv-stat-label">Saldo total</div><div class="inv-stat-value v-ing">'+fmt(tot)+'</div><div class="inv-stat-sub">Al '+I.resumen.fecha_actualizacion+'</div></div>'+
-    '<div class="inv-stat"><div class="inv-stat-label">Ganancia del mercado</div><div class="inv-stat-value '+(gan>=0?'v-pos':'v-neg')+'">'+(gan>=0?'+':'')+fmt(gan)+'</div><div class="inv-stat-sub">'+pct+'% desde feb 2026</div></div>'+
-    '<div class="inv-stat"><div class="inv-stat-label">Total cuotas</div><div class="inv-stat-value">'+tc.toFixed(4)+'</div><div class="inv-stat-sub">Todos los fondos</div></div>';
+async function delCuota(id){
+  if(!confirm('Eliminar?'))return;
+  const c=T.compras.find(x=>x.id==id);if(c)c.activa=false;
+  await saveT();renderTDC();
 }
-function renderInvFondos(){
-  document.getElementById('inv-fondos').innerHTML=(I.fondos||[]).filter(f=>f.activo).map(f=>{
-    const sc=f.subcuentas.map(s=>'<div class="sc-item"><div style="font-size:11px;color:var(--muted)">Subcuenta '+s.numero+'</div><div style="font-size:15px;font-weight:600;margin-top:2px">'+fmt(s.saldo_actual)+'</div><div style="font-size:11px;color:var(--muted)">'+s.cuotas.toFixed(4)+' cuotas</div></div>').join('');
-    return'<div class="fondo-box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem"><div><div style="font-size:15px;font-weight:600">'+f.nombre+'</div><div style="font-size:12px;color:var(--muted)">'+f.administradora+'</div></div><span class="badge b-inv">'+f.tipo+'</span></div><div class="sc-grid">'+sc+'</div><div class="vc-row"><span>Valor cuota</span><span style="font-weight:500">$'+f.valor_cuota_actual.toLocaleString('es-CL',{minimumFractionDigits:4})+'</span></div><div class="vc-row"><span>Actualizado</span><span style="color:var(--muted)">'+f.fecha_valor_cuota+'</span></div><div class="vc-row"><span style="font-weight:600">Saldo total</span><span style="font-weight:600;color:var(--green)">'+fmt(f.saldo_total)+'</span></div></div>';
-  }).join('');
-}
-function renderInvMovs(){
-  const movs=[...(I.movimientos||[])].sort((a,b)=>b.fecha.localeCompare(a.fecha));
-  document.getElementById('inv-movs').innerHTML=!movs.length?'<div class="empty">Sin movimientos</div>':movs.map(m=>{
-    const isR=m.tipo=='Rescate',isT=m.tipo=='Traspaso';
-    const cls=isR?'b-res':isT?'b-tra':'b-inv';
-    return'<div class="mov-item"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:500">'+m.fondo+'</span><span style="font-size:11px;color:var(--muted)">'+m.fecha+' - SC '+m.subcuenta+' - '+(m.cuotas>0?'+':'')+m.cuotas+' cuotas @ $'+m.valor_cuota+'</span></div><div style="display:flex;align-items:center;gap:10px"><div style="text-align:right"><div style="font-weight:600;color:'+(isR?'var(--red)':'var(--green)')+'">'+(isR?'-':'+')+fmt(Math.abs(m.monto))+'</div><span class="badge '+cls+'">'+m.tipo+'</span></div></div></div>';
-  }).join('');
-}
-async function saveMovInv(){
-  const fecha=document.getElementById('if-f').value;
-  const tipo=document.getElementById('if-t').value;
-  const fondo=document.getElementById('if-fo').value;
-  const sc=parseInt(document.getElementById('if-sc').value);
-  const monto=parseFloat(document.getElementById('if-m').value)||0;
-  const cuotas=parseFloat(document.getElementById('if-c').value)||0;
-  const vc=parseFloat(document.getElementById('if-vc').value)||0;
-  const sn=parseFloat(document.getElementById('if-sn').value)||0;
-  if(!fecha||!monto){showMsg('if-msg','Completa fecha y monto',false);return;}
-  I.last_id=(I.last_id||0)+1;
-  I.movimientos.push({fecha,tipo,fondo,subcuenta:sc,cuotas:tipo=='Rescate'?-cuotas:cuotas,valor_cuota:vc,monto:tipo=='Rescate'?-monto:monto});
-  if(sn){const f=I.fondos.find(x=>x.nombre==fondo);if(f){f.saldo_total=sn;f.fecha_valor_cuota=fecha;I.resumen.fecha_actualizacion=fecha;const s=f.subcuentas.find(x=>x.numero==sc);if(s){if(tipo=='Inversion'){s.cuotas+=cuotas;s.saldo_actual+=monto;}else if(tipo=='Rescate'){s.cuotas-=cuotas;s.saldo_actual-=monto;}}}}
-  await saveI();renderInv();toggleXform('if');showMsg('if-msg','Guardado',true);
-}
-
 function showMsg(id,m,ok){const e=document.getElementById(id);e.textContent=m;e.className='msg '+(ok?'ok':'err');setTimeout(()=>{e.className='msg';},3000);}
 </script>
 </body>
