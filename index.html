@@ -156,6 +156,37 @@
   .cuota-subtotal { display:flex; justify-content:space-between; padding:8px 10px; font-size:14px; font-weight:600; border-top:1px solid var(--border); margin-top:4px; }
   @media(max-width:580px){ .tdc-grid{grid-template-columns:1fr;} .tdc-timeline{grid-template-columns:repeat(3,1fr);} }
 
+
+  .inv-header { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:1rem; }
+  .inv-stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+  .inv-stat-label { font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .inv-stat-value { font-size:20px; font-weight:600; }
+  .inv-stat-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .fondo-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.25rem; margin-bottom:1rem; }
+  .fondo-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem; }
+  .fondo-nombre { font-size:15px; font-weight:600; }
+  .fondo-tipo { font-size:11px; padding:2px 8px; border-radius:20px; font-weight:500; background:#E1F5EE; color:#0F6E56; }
+  .fondo-tipo.moderado { background:#FAEEDA; color:#633806; }
+  .subcuentas-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:1rem; }
+  .subcuenta-item { background:var(--bg); border-radius:8px; padding:8px 12px; }
+  .subcuenta-label { font-size:11px; color:var(--muted); }
+  .subcuenta-val { font-size:15px; font-weight:600; margin-top:2px; }
+  .subcuenta-cuotas { font-size:11px; color:var(--muted); }
+  .vc-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:0.5px solid var(--border); font-size:13px; }
+  .vc-row:last-child { border-bottom:none; }
+  .rentab-pos { color:var(--green); font-weight:600; }
+  .rentab-neg { color:var(--red); font-weight:600; }
+  .mov-item { display:flex; justify-content:space-between; align-items:center; padding:9px 10px; font-size:13px; border-bottom:0.5px solid var(--border); }
+  .mov-item:last-child { border-bottom:none; }
+  .mov-tipo { font-size:11px; font-weight:500; padding:2px 8px; border-radius:20px; }
+  .mov-inv { background:#E1F5EE; color:#0F6E56; }
+  .mov-res { background:#FAECE7; color:#993C1D; }
+  .mov-tras { background:#E6F1FB; color:#185FA5; }
+  .btn-add-inv { padding:8px 20px; background:var(--text); color:white; border:none; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; }
+  .inv-form { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.25rem; margin-bottom:1rem; display:none; }
+  .inv-form.visible { display:block; }
+  @media(max-width:580px){ .inv-header{grid-template-columns:1fr 1fr;} .subcuentas-grid{grid-template-columns:1fr;} }
+
 </style>
 </head>
 <body>
@@ -193,6 +224,7 @@
     <button class="tab" onclick="showTab('nuevo')">Nuevo registro</button>
     <button class="tab" onclick="showTab('historial')">Historial</button>
     <button class="tab" onclick="showTab('tdc')">Tarjetas</button>
+    <button class="tab" onclick="showTab('inv')">Inversiones</button>
   </div>
 
   <!-- DASHBOARD -->
@@ -259,6 +291,56 @@
     </div>
     <div class="card">
       <div class="table-wrap"><div id="hist-table"><div class="empty">Sin datos</div></div></div>
+    </div>
+  </div>
+
+  <!-- INVERSIONES -->
+  <div id="tab-inv" class="section">
+    <div class="inv-header" id="inv-resumen"></div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Fondos activos</span>
+        <button class="btn-add-inv" onclick="toggleInvForm()">+ Registrar movimiento</button>
+      </div>
+      <div class="inv-form" id="inv-form">
+        <div class="form-grid">
+          <div class="form-group"><label>Fecha</label><input type="date" id="if-fecha"></div>
+          <div class="form-group"><label>Tipo</label>
+            <select id="if-tipo">
+              <option value="Inversión">Inversión (aporte)</option>
+              <option value="Rescate">Rescate (retiro)</option>
+              <option value="Traspaso">Traspaso entre fondos</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Fondo</label>
+            <select id="if-fondo">
+              <option value="Itaú Cartera Reserva">Itaú Cartera Reserva</option>
+              <option value="Otro fondo">Otro fondo</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Subcuenta</label>
+            <select id="if-subcuenta"><option value="0">0</option><option value="1">1</option></select>
+          </div>
+          <div class="form-group"><label>Monto ($)</label><input type="number" id="if-monto" placeholder="0"></div>
+          <div class="form-group"><label>N° cuotas</label><input type="number" id="if-cuotas" placeholder="0" step="0.0001"></div>
+          <div class="form-group"><label>Valor cuota</label><input type="number" id="if-vc" placeholder="0" step="0.0001"></div>
+          <div class="form-group"><label>Actualizar saldo fondo</label>
+            <input type="number" id="if-saldo-nuevo" placeholder="Saldo total nuevo (opcional)">
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:.75rem">
+          <button class="btn-save" onclick="guardarMovInv()">Guardar</button>
+          <button class="btn-secondary" onclick="toggleInvForm()">Cancelar</button>
+        </div>
+        <div class="msg" id="if-msg"></div>
+      </div>
+      <div id="inv-fondos-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Historial de movimientos</span></div>
+      <div id="inv-movimientos"></div>
     </div>
   </div>
 
@@ -398,6 +480,176 @@ async function startApp() {
   initUI();
 }
 
+
+
+// ===== INVERSIONES MODULE =====
+let invData = null;
+const INV_FILE = 'inv_data.json';
+let _invSha = null;
+
+async function loadInv() {
+  const url = `https://api.github.com/repos/${ghConfig.user}/${ghConfig.repo}/contents/${INV_FILE}`;
+  const res = await fetch(url, { headers: getGHHeaders() });
+  if (res.status === 404) {
+    invData = INITIAL_INV;
+    await saveInv();
+  } else {
+    const meta = await res.json();
+    _invSha = meta.sha;
+    invData = JSON.parse(atob(meta.content.replace(/\n/g,'')));
+  }
+  renderInv();
+}
+
+async function saveInv() {
+  setSyncStatus('syncing');
+  const url = `https://api.github.com/repos/${ghConfig.user}/${ghConfig.repo}/contents/${INV_FILE}`;
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(invData, null, 2))));
+  const body = { message: 'update inversiones', content };
+  if (_invSha) body.sha = _invSha;
+  const res = await fetch(url, { method:'PUT', headers: getGHHeaders(), body: JSON.stringify(body) });
+  if (!res.ok) { setSyncStatus('error'); return; }
+  const result = await res.json();
+  _invSha = result.content.sha;
+  setSyncStatus('ok');
+}
+
+function renderInv() {
+  renderInvResumen();
+  renderInvFondos();
+  renderInvMovimientos();
+}
+
+function renderInvResumen() {
+  const total = invData.fondos.filter(f => f.activo).reduce((s,f) => s + f.saldo_total, 0);
+  const totalCuotas = invData.fondos.filter(f => f.activo).reduce((s,f) =>
+    s + f.subcuentas.reduce((ss,sc) => ss + sc.cuotas, 0), 0);
+
+  // Ganancia desde saldo inicial conocido
+  const saldoBase = invData.resumen.saldo_inicial_mar;
+  const aportesMar = invData.resumen.total_invertido_aportes;
+  const ganancia = total - saldoBase - 500000; // solo aporte propio nuevo
+  const pct = saldoBase ? ((ganancia / (saldoBase + 500000)) * 100).toFixed(2) : 0;
+
+  document.getElementById('inv-resumen').innerHTML = `
+    <div class="inv-stat">
+      <div class="inv-stat-label">Saldo total actual</div>
+      <div class="inv-stat-value" style="color:var(--green)">${fmt(total)}</div>
+      <div class="inv-stat-sub">Al ${invData.resumen.fecha_actualizacion}</div>
+    </div>
+    <div class="inv-stat">
+      <div class="inv-stat-label">Ganancia acumulada</div>
+      <div class="inv-stat-value ${ganancia >= 0 ? 'rentab-pos' : 'rentab-neg'}">${ganancia >= 0 ? '+' : ''}${fmt(ganancia)}</div>
+      <div class="inv-stat-sub">${pct}% desde feb 2026</div>
+    </div>
+    <div class="inv-stat">
+      <div class="inv-stat-label">Total cuotas</div>
+      <div class="inv-stat-value">${totalCuotas.toFixed(4)}</div>
+      <div class="inv-stat-sub">Todos los fondos</div>
+    </div>`;
+}
+
+function renderInvFondos() {
+  const el = document.getElementById('inv-fondos-list');
+  if (!invData.fondos.filter(f => f.activo).length) {
+    el.innerHTML = '<div class="empty">Sin fondos registrados</div>'; return;
+  }
+  el.innerHTML = invData.fondos.filter(f => f.activo).map(f => {
+    const subcuentasHtml = f.subcuentas.map(sc => `
+      <div class="subcuenta-item">
+        <div class="subcuenta-label">Subcuenta ${sc.numero}</div>
+        <div class="subcuenta-val">${fmt(sc.saldo_actual)}</div>
+        <div class="subcuenta-cuotas">${sc.cuotas.toFixed(4)} cuotas</div>
+      </div>`).join('');
+    return `<div class="fondo-card">
+      <div class="fondo-header">
+        <div>
+          <div class="fondo-nombre">${f.nombre}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${f.administradora}</div>
+        </div>
+        <span class="fondo-tipo ${f.tipo === 'Moderado' ? 'moderado' : ''}">${f.tipo}</span>
+      </div>
+      <div class="subcuentas-grid">${subcuentasHtml}</div>
+      <div class="vc-row"><span>Valor cuota actual</span><span style="font-weight:500">$${f.valor_cuota_actual.toLocaleString('es-CL', {minimumFractionDigits:4})}</span></div>
+      <div class="vc-row"><span>Fecha valor cuota</span><span style="color:var(--muted)">${f.fecha_valor_cuota}</span></div>
+      <div class="vc-row"><span style="font-weight:600">Saldo total</span><span style="font-weight:600;color:var(--green)">${fmt(f.saldo_total)}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function renderInvMovimientos() {
+  const el = document.getElementById('inv-movimientos');
+  const movs = [...invData.movimientos].sort((a,b) => b.fecha.localeCompare(a.fecha));
+  if (!movs.length) { el.innerHTML = '<div class="empty">Sin movimientos</div>'; return; }
+  el.innerHTML = movs.map(m => {
+    const isRescate = m.tipo === 'Rescate';
+    const isTras = m.tipo === 'Traspaso';
+    const cls = isRescate ? 'mov-res' : isTras ? 'mov-tras' : 'mov-inv';
+    return `<div class="mov-item">
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span style="font-weight:500">${m.fondo}</span>
+        <span style="font-size:11px;color:var(--muted)">${m.fecha} · SC ${m.subcuenta} · ${m.cuotas > 0 ? '+' : ''}${m.cuotas} cuotas @ $${m.valor_cuota}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="text-align:right">
+          <div style="font-weight:600;color:${isRescate ? 'var(--red)' : 'var(--green)}">${isRescate ? '-' : '+'}${fmt(Math.abs(m.monto))}</div>
+          <span class="mov-tipo ${cls}">${m.tipo}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleInvForm() {
+  const f = document.getElementById('inv-form');
+  f.classList.toggle('visible');
+  if (f.classList.contains('visible')) {
+    document.getElementById('if-fecha').value = new Date().toISOString().split('T')[0];
+  }
+}
+
+async function guardarMovInv() {
+  const fecha = document.getElementById('if-fecha').value;
+  const tipo = document.getElementById('if-tipo').value;
+  const fondo = document.getElementById('if-fondo').value;
+  const subcuenta = parseInt(document.getElementById('if-subcuenta').value);
+  const monto = parseFloat(document.getElementById('if-monto').value) || 0;
+  const cuotas = parseFloat(document.getElementById('if-cuotas').value) || 0;
+  const vc = parseFloat(document.getElementById('if-vc').value) || 0;
+  const saldoNuevo = parseFloat(document.getElementById('if-saldo-nuevo').value) || 0;
+  if (!fecha || !monto) { showInvMsg('Completa fecha y monto', false); return; }
+
+  invData.last_id = (invData.last_id||0) + 1;
+  invData.movimientos.push({ fecha, tipo, fondo, subcuenta, cuotas: tipo==='Rescate'?-cuotas:cuotas, valor_cuota: vc, monto: tipo==='Rescate'?-monto:monto });
+
+  // Actualizar saldo del fondo si se proporcionó
+  if (saldoNuevo) {
+    const f = invData.fondos.find(x => x.nombre === fondo);
+    if (f) {
+      f.saldo_total = saldoNuevo;
+      f.fecha_valor_cuota = fecha;
+      invData.resumen.fecha_actualizacion = fecha;
+      const sc = f.subcuentas.find(x => x.numero === subcuenta);
+      if (sc) {
+        if (tipo === 'Inversión') { sc.cuotas += cuotas; sc.saldo_actual += monto; }
+        else if (tipo === 'Rescate') { sc.cuotas -= cuotas; sc.saldo_actual -= monto; }
+      }
+    }
+  }
+
+  await saveInv();
+  renderInv();
+  toggleInvForm();
+  showInvMsg('✓ Movimiento guardado', true);
+}
+
+function showInvMsg(msg, ok) {
+  const el = document.getElementById('if-msg');
+  el.textContent = msg; el.className = 'msg '+(ok?'ok':'err');
+  setTimeout(() => { el.className='msg'; }, 3000);
+}
+
+const INITIAL_INV = {"fondos": [{"id": "itau_cartera_reserva", "nombre": "Itaú Cartera Reserva", "administradora": "Itaú AGF", "tipo": "Conservador", "moneda": "CLP", "subcuentas": [{"numero": 0, "cuotas": 2211.765, "saldo_actual": 2973364}, {"numero": 1, "cuotas": 511.489, "saldo_actual": 502680}], "valor_cuota_actual": 1334.0902, "fecha_valor_cuota": "2026-04-07", "saldo_total": 3476044, "activo": true}], "movimientos": [{"fecha": "2026-03-23", "tipo": "Inversión", "fondo": "Itaú Cartera Reserva", "subcuenta": 1, "cuotas": 393.789, "valor_cuota": 1269.7154, "monto": 500000}, {"fecha": "2026-03-26", "tipo": "Inversión", "fondo": "Itaú Cartera Reserva", "subcuenta": 0, "cuotas": 78.0806, "valor_cuota": 1271.8517, "monto": 99307}, {"fecha": "2026-03-26", "tipo": "Inversión", "fondo": "Itaú Cartera Reserva", "subcuenta": 0, "cuotas": 58.2906, "valor_cuota": 1271.8517, "monto": 74137}, {"fecha": "2026-03-26", "tipo": "Inversión", "fondo": "Itaú Cartera Reserva", "subcuenta": 0, "cuotas": 58.12, "valor_cuota": 1271.8517, "monto": 73920}, {"fecha": "2026-03-26", "tipo": "Inversión", "fondo": "Itaú Cartera Reserva", "subcuenta": 0, "cuotas": 778.5287, "valor_cuota": 1271.8517, "monto": 990173}, {"fecha": "2026-03-23", "tipo": "Rescate", "fondo": "Itaú Cartera Crecimiento Defensivo", "subcuenta": 0, "cuotas": -865.2641, "valor_cuota": 1430.2419, "monto": -1237537}, {"fecha": "2026-04-06", "tipo": "Inversión", "fondo": "Itaú Cartera Reserva", "subcuenta": 1, "cuotas": 117.7, "valor_cuota": 1274.0, "monto": 150000}], "resumen": {"total_invertido_aportes": 1737537, "saldo_inicial_mar": 2828101, "saldo_actual": 3476044, "fecha_actualizacion": "2026-04-07", "total_aportes_propios": 650000}, "last_id": 7};
 
 // ===== TDC MODULE =====
 let tdcData = null;
@@ -676,10 +928,12 @@ function setType(t) {
 }
 
 function showTab(name) {
-  ['dashboard','nuevo','historial','tdc'].forEach((t,i) => {
+  ['dashboard','nuevo','historial','tdc','inv'].forEach((t,i) => {
     document.getElementById('tab-'+t).classList.toggle('active', t===name);
     document.querySelectorAll('.tab')[i].classList.toggle('active', t===name);
   });
+  if (name==='inv' && !invData) loadInv();
+  if (name==='inv' && invData) renderInv();
   if (name==='tdc' && !tdcData) loadTDC();
   if (name==='tdc' && tdcData) renderTDC();
   if (name==='historial') { fillHistCats(); renderHistory(); }
