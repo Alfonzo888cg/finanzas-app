@@ -495,13 +495,24 @@ async function loadTDC(){
 }
   async function loadINV(){
     console.log("LOAD INV START");
-    const m = await ghGet('inv_data.json');
-    if(m){
-      sha_inv = m.sha;
-      INV = JSON.parse(atob(m.content.replace(/\n/g,'')));
-    } else {
+  
+    try{
+      const m = await ghGet('inv_data.json');
+      console.log("RAW:", m);
+  
+      if(m && m.content){
+        sha_inv = m.sha;
+        INV = JSON.parse(atob(m.content.replace(/\n/g,'')));
+        console.log("PARSED INV:", INV);
+      } else {
+        console.warn("No se encontró inv_data.json, creando inicial...");
+        INV = { fondos: [], movimientos: [], resumen: {}, last_id: 0 };
+        sha_inv = await ghPut('inv_data.json', INV, null, 'init inv');
+      }
+  
+    }catch(e){
+      console.error("ERROR loadINV:", e);
       INV = { fondos: [], movimientos: [], resumen: {}, last_id: 0 };
-      sha_inv = await ghPut('inv_data.json', INV, null, 'init inv');
     }
   }
   async function saveINV(){
