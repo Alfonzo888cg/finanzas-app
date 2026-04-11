@@ -302,7 +302,7 @@ async function startApp(){
     if(!md)throw new Error('No se encontro data.json en el repo "'+gc.repo+'". Verifica que el archivo existe.');
     sha.d=md.sha;
     document.getElementById('loading-msg').textContent='Cargando datos...';
-    D=JSON.parse(atob(md.content.replace(//g,'')));
+    D = JSON.parse(atob(md.content.replace(/\n/g, '')));
     document.getElementById('loading').style.display='none';
     document.getElementById('app').style.display='block';
     initUI();
