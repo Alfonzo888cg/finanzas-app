@@ -469,6 +469,22 @@ function exportXLS(){
 // TDC
 let tdcMes='2026-04';
 async function loadTDC(){
+  const m = await ghGet('tdc_data.json');
+  if(m){
+    sha.t = m.sha;
+    T = JSON.parse(atob(m.content.replace(/\n/g,'')));
+  } else {
+    T = {
+      compras:[],
+      cupos:{
+        BCI:{nacional:4320000},
+        ITAU:{nacional:3400000}
+      },
+      last_id:0
+    };
+    sha.t = await ghPut('tdc_data.json',T,null,'init tdc');
+  }
+}
   async function loadINV(){
     const m = await ghGet('inv_data.json');
     if(m){
@@ -484,10 +500,6 @@ async function loadTDC(){
     sha_inv = await ghPut('inv_data.json', INV, sha_inv, 'update inv');
     setSync('ok');
   }
-  const m=await ghGet('tdc_data.json');
-  if(m){sha.t=m.sha;T = JSON.parse(atob(m.content.replace(/\n/g, '')));}
-  else{T={compras:[],cupos:{BCI:{nacional:4320000},ITAU:{nacional:3400000}},last_id:0};sha.t=await ghPut('tdc_data.json',T,null,'init tdc');}
-}
 async function saveT(){setSync('syncing');sha.t=await ghPut('tdc_data.json',T,sha.t,'update tdc');setSync('ok');}
 function getCuotasMes(mes){return(T.compras||[]).filter(c=>c.activa).map(c=>{const q=(c.cuotas||[]).find(x=>x.mes==mes);return q?{...c,mm:q.monto}:null;}).filter(Boolean);}
 function cuotasRest(c){return(c.cuotas||[]).filter(q=>q.mes>=tdcMes).length;}
