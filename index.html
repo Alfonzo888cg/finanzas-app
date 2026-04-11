@@ -150,6 +150,7 @@ tr:last-child td{border-bottom:none}
     <button class="tab" onclick="showTab('nuevo')">Nuevo</button>
     <button class="tab" onclick="showTab('historial')">Historial</button>
     <button class="tab" onclick="showTab('tdc')">Tarjetas</button>
+    <button class="tab" onclick="showTab('inv')">Inversiones</button>
   </div>
 
   <div id="tab-dashboard" class="section active">
@@ -225,6 +226,26 @@ tr:last-child td{border-bottom:none}
       <div class="sec-sub">BCI</div><div class="plist" id="pl-bci"></div>
       <div class="sec-sub" style="margin-top:1rem">ITAU</div><div class="plist" id="pl-itau"></div>
     </div>
+    <div id="tab-inv" class="section">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Resumen inversiones</span>
+        </div>
+        <div id="inv-resumen"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Fondos</span>
+        </div>
+        <div id="inv-fondos"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Movimientos</span>
+        </div>
+        <div id="inv-movs"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -232,7 +253,8 @@ tr:last-child td{border-bottom:none}
 const MN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const MF=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 let txType='Ingreso';
-let D=null,T=null;
+let D=null,T=null,INV=null;
+let sha_inv=null;
 let barC=null,pieC=null;
 let gc=null;
 let sha={d:null,t:null};
@@ -280,7 +302,7 @@ async function startApp(){
     if(!md)throw new Error('No se encontro data.json en el repo "'+gc.repo+'". Verifica que el archivo existe.');
     sha.d=md.sha;
     document.getElementById('loading-msg').textContent='Cargando datos...';
-    D=JSON.parse(atob(md.content.replace(/\n/g,'')));
+    D=JSON.parse(atob(md.content.replace(//g,'')));
     document.getElementById('loading').style.display='none';
     document.getElementById('app').style.display='block';
     initUI();
@@ -327,6 +349,10 @@ function setType(t){
   document.getElementById('f-cat').innerHTML=D.categories[t=='Ingreso'?'ingreso':'gasto'].map(c=>'<option>'+c+'</option>').join('');
 }
 function showTab(n){
+  if(n=='inv'){
+  if(!INV) loadINV().then(()=>renderINV());
+  else renderINV();
+  }
   ['dashboard','nuevo','historial','tdc'].forEach((t,i)=>{
     document.getElementById('tab-'+t).classList.toggle('active',t==n);
     document.querySelectorAll('.tab')[i].classList.toggle('active',t==n);
@@ -429,8 +455,23 @@ function exportXLS(){
 // TDC
 let tdcMes='2026-04';
 async function loadTDC(){
+  async function loadINV(){
+    const m = await ghGet('inv_data.json');
+    if(m){
+      sha_inv = m.sha;
+      INV = JSON.parse(atob(m.content.replace(/\n/g,'')));
+    } else {
+      INV = { fondos: [], movimientos: [], resumen: {}, last_id: 0 };
+      sha_inv = await ghPut('inv_data.json', INV, null, 'init inv');
+    }
+  }
+  async function saveINV(){
+    setSync('syncing');
+    sha_inv = await ghPut('inv_data.json', INV, sha_inv, 'update inv');
+    setSync('ok');
+  }
   const m=await ghGet('tdc_data.json');
-  if(m){sha.t=m.sha;T=JSON.parse(atob(m.content.replace(/\n/g,'')));}
+  if(m){sha.t=m.sha;T=JSON.parse(atob(m.content.replace(//g,'')));}
   else{T={compras:[],cupos:{BCI:{nacional:4320000},ITAU:{nacional:3400000}},last_id:0};sha.t=await ghPut('tdc_data.json',T,null,'init tdc');}
 }
 async function saveT(){setSync('syncing');sha.t=await ghPut('tdc_data.json',T,sha.t,'update tdc');setSync('ok');}
@@ -487,7 +528,7 @@ function renderTDCPend(){
     if(!comp.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px">Sin compras vigentes</div>';return;}
     el.innerHTML=comp.map(c=>{
       const rest=cuotasRest(c),tot=montoTot(c),cv=(c.cuotas[0]?.monto||0);
-      return'<div class="pitem"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:500">'+c.descripcion+'</span><span style="color:var(--muted);font-size:11px">'+(c.recurrente?'Cargo recurrente':rest+' cuota'+(rest!=1?'s':'')+' restante'+(rest!=1?'s':''))+'</span></div><div style="display:flex;align-items:center;gap:8px"><div style="text-align:right"><div style="font-weight:600">'+fmt(cv)+'<span style="font-size:10px;color:var(--muted)">/mes</span></div>'+(!c.recurrente?'<div style="font-size:11px;color:var(--muted)">Total: '+fmt(tot)+'</div>':'')+'</div><button class="btn-del" onclick="delCuota(\''+c.id+'\')">x</button></div></div>';
+      return'<div class="pitem"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:500">'+c.descripcion+'</span><span style="color:var(--muted);font-size:11px">'+(c.recurrente?'Cargo recurrente':rest+' cuota'+(rest!=1?'s':'')+' restante'+(rest!=1?'s':''))+'</span></div><div style="display:flex;align-items:center;gap:8px"><div style="text-align:right"><div style="font-weight:600">'+fmt(cv)+'<span style="font-size:10px;color:var(--muted)">/mes</span></div>'+(!c.recurrente?'<div style="font-size:11px;color:var(--muted)">Total: '+fmt(tot)+'</div>':'')+'</div><button class="btn-del" onclick="delCuota(''+c.id+'')">x</button></div></div>';
     }).join('');
   });
 }
@@ -514,6 +555,80 @@ async function delCuota(id){
   await saveT();renderTDC();
 }
 function showMsg(id,m,ok){const e=document.getElementById(id);e.textContent=m;e.className='msg '+(ok?'ok':'err');setTimeout(()=>{e.className='msg';},3000);}
+function renderINV(){
+  renderInvResumen();
+  renderInvFondos();
+  renderInvMovs();
+}
+
+function renderInvResumen(){
+  const r = INV.resumen || {};
+  document.getElementById('inv-resumen').innerHTML = `
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">Saldo actual</div>
+        <div class="metric-value v-pos">${fmt(r.saldo_actual || 0)}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Aportes</div>
+        <div class="metric-value">${fmt(r.total_aportes_propios || 0)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderInvFondos(){
+  const el = document.getElementById('inv-fondos');
+
+  if(!INV.fondos.length){
+    el.innerHTML = '<div class="empty">Sin fondos</div>';
+    return;
+  }
+
+  el.innerHTML = INV.fondos.map(f => `
+    <div class="pitem">
+      <div>
+        <strong>${f.nombre}</strong><br>
+        <span style="font-size:12px;color:var(--muted)">
+          ${f.tipo} - ${f.administradora}
+        </span>
+      </div>
+      <div>${fmt(f.saldo_total)}</div>
+    </div>
+  `).join('');
+}
+
+function renderInvMovs(){
+  const el = document.getElementById('inv-movs');
+
+  if(!INV.movimientos.length){
+    el.innerHTML = '<div class="empty">Sin movimientos</div>';
+    return;
+  }
+
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Tipo</th>
+          <th>Fondo</th>
+          <th style="text-align:right">Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${INV.movimientos.map(m => `
+          <tr>
+            <td>${m.fecha}</td>
+            <td>${m.tipo}</td>
+            <td>${m.fondo}</td>
+            <td style="text-align:right">${fmt(m.monto)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
 </script>
 </body>
 </html>
