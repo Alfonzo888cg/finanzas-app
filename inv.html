@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inversiones - Finanzas</title>
+<style>
+:root{--bg:#f7f7f5;--surface:#fff;--border:rgba(0,0,0,0.1);--text:#1a1a1a;--muted:#666;--green:#1D9E75;--green-bg:#E1F5EE;--red:#D85A30;--red-bg:#FAECE7;--blue:#185FA5;--blue-bg:#E6F1FB;--radius:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+#loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100}
+#load-msg{font-size:14px;color:var(--muted);text-align:center;padding:1rem}
+#load-err{display:none;background:var(--red-bg);color:var(--red);padding:1rem;border-radius:8px;font-size:13px;margin:1rem;line-height:1.5;text-align:center}
+#load-btns{display:none;gap:8px;justify-content:center;margin-top:1rem}
+#app{display:none;max-width:900px;margin:0 auto;padding:1rem}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+.header-left{display:flex;align-items:center;gap:12px}
+.btn-back{padding:7px 14px;font-size:13px;border:1px solid var(--border);background:var(--surface);border-radius:8px;cursor:pointer;color:var(--text);text-decoration:none;display:inline-block}
+.header h1{font-size:20px;font-weight:600}
+.sync-status{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.sync-dot.syncing{background:#EF9F27;animation:pulse 1s infinite}
+.sync-dot.error{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem}
+.stat-label{font-size:12px;color:var(--muted);margin-bottom:4px}
+.stat-value{font-size:20px;font-weight:600}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.v-pos{color:var(--green)}.v-neg{color:var(--red)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1rem}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.card-title{font-size:13px;font-weight:500;color:var(--muted)}
+.fondo-box{background:var(--bg);border-radius:8px;padding:1rem;margin-bottom:.5rem}
+.sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:1rem 0}
+.sc-item{background:var(--surface);border-radius:8px;padding:8px 12px;border:1px solid var(--border)}
+.sc-label{font-size:11px;color:var(--muted)}
+.sc-val{font-size:15px;font-weight:600;margin-top:2px}
+.sc-cuotas{font-size:11px;color:var(--muted)}
+.vc-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:.5px solid var(--border);font-size:13px}
+.vc-row:last-child{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.b-inv{background:var(--green-bg);color:var(--green)}
+.b-res{background:var(--red-bg);color:var(--red)}
+.b-tra{background:var(--blue-bg);color:var(--blue)}
+.mov-item{display:flex;justify-content:space-between;align-items:center;padding:9px 10px;font-size:13px;border-bottom:.5px solid var(--border)}
+.mov-item:last-child{border-bottom:none}
+.empty{text-align:center;padding:2rem;color:var(--muted);font-size:14px}
+.xform{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1rem;display:none}
+.xform.open{display:block}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.form-group input,.form-group select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text)}
+.btn-save{margin-top:1rem;padding:10px 28px;background:var(--text);color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+.btn-sec{margin-top:1rem;padding:10px 28px;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:8px;font-size:14px;cursor:pointer}
+.btn-sm{padding:8px 18px;background:var(--text);color:white;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer}
+.msg{margin-top:8px;font-size:13px;padding:8px 12px;border-radius:6px;display:none}
+.msg.ok{background:var(--green-bg);color:var(--green);display:block}
+.msg.err{background:var(--red-bg);color:var(--red);display:block}
+@media(max-width:580px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .stats-grid .stat:last-child{grid-column:span 2}
+  .form-grid{grid-template-columns:1fr}
+  .sc-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div>
+    <div id="load-msg">Conectando con GitHub...</div>
+    <div id="load-err"></div>
+    <div id="load-btns" style="display:none;gap:8px;justify-content:center">
+      <button onclick="location.href='index.html'" style="padding:9px 20px;background:var(--text);color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer">Volver al inicio</button>
+      <button onclick="startApp()" style="padding:9px 20px;background:transparent;border:1px solid #ccc;border-radius:8px;font-size:13px;cursor:pointer">Reintentar</button>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="header">
+    <div class="header-left">
+      <a href="index.html" class="btn-back">&#8592; Volver</a>
+      <h1>Inversiones</h1>
+    </div>
+    <div class="sync-status"><div class="sync-dot" id="sdot"></div><span id="slabel">OK</span></div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid" id="inv-stats"></div>
+
+  <!-- FONDOS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Fondos activos</span>
+      <button class="btn-sm" onclick="toggleForm()">+ Registrar movimiento</button>
+    </div>
+    <div class="xform" id="mov-form">
+      <div class="form-grid">
+        <div class="form-group"><label>Fecha</label><input type="date" id="if-fecha"></div>
+        <div class="form-group"><label>Tipo</label>
+          <select id="if-tipo">
+            <option value="Inversion">Inversion (aporte)</option>
+            <option value="Rescate">Rescate (retiro)</option>
+            <option value="Traspaso">Traspaso</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Fondo</label>
+          <select id="if-fondo">
+            <option>Itau Cartera Reserva</option>
+            <option>Otro fondo</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Subcuenta</label>
+          <select id="if-sc"><option value="0">0</option><option value="1">1</option></select>
+        </div>
+        <div class="form-group"><label>Monto ($)</label><input type="number" id="if-monto" placeholder="0"></div>
+        <div class="form-group"><label>N cuotas</label><input type="number" id="if-cuotas" placeholder="0" step="0.0001"></div>
+        <div class="form-group"><label>Valor cuota</label><input type="number" id="if-vc" placeholder="0" step="0.0001"></div>
+        <div class="form-group"><label>Saldo total nuevo (opcional)</label><input type="number" id="if-saldo" placeholder="Ej: 3500000"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:.75rem">
+        <button class="btn-save" onclick="guardarMov()">Guardar</button>
+        <button class="btn-sec" onclick="toggleForm()">Cancelar</button>
+      </div>
+      <div class="msg" id="mov-msg"></div>
+    </div>
+    <div id="inv-fondos"></div>
+  </div>
+
+  <!-- MOVIMIENTOS -->
+  <div class="card">
+    <div class="card-header"><span class="card-title">Historial de movimientos</span></div>
+    <div id="inv-movs"></div>
+  </div>
+</div>
+
+<script>
+function fmt(n){return '$'+Math.round(Math.abs(n)).toLocaleString('es-CL')}
+let gc=null,INV=null,invSha=null;
+
+function loadCfg(){try{return JSON.parse(localStorage.getItem('gh_cfg'));}catch{return null;}}
+function gh(p){return 'https://api.github.com/repos/'+gc.user+'/'+gc.repo+'/contents/'+p}
+function ghH(){return{'Authorization':'token '+gc.token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'}}
+function setSync(s){
+  document.getElementById('sdot').className='sync-dot'+(s=='syncing'?' syncing':s=='error'?' error':'');
+  document.getElementById('slabel').textContent=s=='syncing'?'Guardando...':s=='error'?'Error':'OK';
+}
+
+async function ghGet(file){
+  const r=await fetch(gh(file),{headers:ghH()});
+  if(r.status==404)return null;
+  if(r.status==401)throw new Error('Token invalido. Vuelve al inicio y reconfigura.');
+  if(!r.ok)throw new Error('GitHub '+r.status+' al leer '+file);
+  return r.json();
+}
+async function ghPut(file,data,sha,msg){
+  const body={message:msg,content:btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2))))};
+  if(sha)body.sha=sha;
+  const r=await fetch(gh(file),{method:'PUT',headers:ghH(),body:JSON.stringify(body)});
+  if(!r.ok)throw new Error('Error guardando '+file+' ('+r.status+')');
+  return(await r.json()).content.sha;
+}
+
+async function startApp(){
+  document.getElementById('loading').style.display='flex';
+  document.getElementById('load-err').style.display='none';
+  document.getElementById('load-btns').style.display='none';
+  document.getElementById('load-msg').textContent='Cargando inversiones...';
+  try{
+    const m=await ghGet('inv_data.json');
+    if(m){invSha=m.sha;INV=JSON.parse(atob(m.content.replace(/\n/g,'')));}
+    else{
+      INV={
+        fondos:[{
+          id:'itau_reserva',nombre:'Itau Cartera Reserva',administradora:'Itau AGF',
+          tipo:'Conservador',moneda:'CLP',
+          subcuentas:[
+            {numero:0,cuotas:2211.7650,saldo_actual:2973364},
+            {numero:1,cuotas:511.4890,saldo_actual:652680}
+          ],
+          valor_cuota_actual:1334.0902,fecha_valor_cuota:'2026-04-07',
+          saldo_total:3476044,activo:true
+        }],
+        movimientos:[
+          {fecha:'2026-03-23',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:1,cuotas:393.7890,valor_cuota:1269.7154,monto:500000},
+          {fecha:'2026-03-26',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:0,cuotas:78.0806,valor_cuota:1271.8517,monto:99307},
+          {fecha:'2026-03-26',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:0,cuotas:58.2906,valor_cuota:1271.8517,monto:74137},
+          {fecha:'2026-03-26',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:0,cuotas:58.1200,valor_cuota:1271.8517,monto:73920},
+          {fecha:'2026-03-26',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:0,cuotas:778.5287,valor_cuota:1271.8517,monto:990173},
+          {fecha:'2026-03-23',tipo:'Rescate',fondo:'Itau Cartera Crecimiento Defensivo',subcuenta:0,cuotas:-865.2641,valor_cuota:1430.2419,monto:-1237537},
+          {fecha:'2026-04-06',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:1,cuotas:117.7000,valor_cuota:1274.0,monto:150000}
+        ],
+        resumen:{saldo_inicial_mar:2828101,saldo_actual:3476044,total_aportes_propios:650000,fecha_actualizacion:'2026-04-07'},
+        last_id:7
+      };
+      invSha=await ghPut('inv_data.json',INV,null,'init inv');
+    }
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('if-fecha').value=new Date().toISOString().split('T')[0];
+    renderAll();
+  }catch(e){
+    document.getElementById('load-msg').textContent='';
+    document.getElementById('load-err').textContent=e.message;
+    document.getElementById('load-err').style.display='block';
+    document.getElementById('load-btns').style.display='flex';
+  }
+}
+
+async function saveINV(){
+  setSync('syncing');
+  invSha=await ghPut('inv_data.json',INV,invSha,'update inv');
+  setSync('ok');
+  INV.resumen.saldo_actual=INV.fondos.filter(f=>f.activo).reduce((s,f)=>s+f.saldo_total,0);
+}
+
+function renderAll(){renderStats();renderFondos();renderMovs();}
+
+function renderStats(){
+  const tot=INV.fondos.filter(f=>f.activo).reduce((s,f)=>s+f.saldo_total,0);
+  const tc=INV.fondos.filter(f=>f.activo).reduce((s,f)=>s+f.subcuentas.reduce((ss,sc)=>ss+sc.cuotas,0),0);
+  const base=(INV.resumen.saldo_inicial_mar||0)+(INV.resumen.total_aportes_propios||0);
+  const gan=tot-(INV.resumen.saldo_inicial_mar||0)-(INV.resumen.total_aportes_propios||0);
+  const pct=base>0?((gan/base)*100).toFixed(2):0;
+  document.getElementById('inv-stats').innerHTML=
+    '<div class="stat"><div class="stat-label">Saldo total</div><div class="stat-value v-pos">'+fmt(tot)+'</div><div class="stat-sub">Al '+INV.resumen.fecha_actualizacion+'</div></div>'+
+    '<div class="stat"><div class="stat-label">Ganancia del mercado</div><div class="stat-value '+(gan>=0?'v-pos':'v-neg')+'">'+(gan>=0?'+':'')+fmt(gan)+'</div><div class="stat-sub">'+pct+'% desde feb 2026</div></div>'+
+    '<div class="stat"><div class="stat-label">Total cuotas</div><div class="stat-value">'+tc.toFixed(4)+'</div><div class="stat-sub">Todos los fondos</div></div>';
+}
+
+function renderFondos(){
+  document.getElementById('inv-fondos').innerHTML=INV.fondos.filter(f=>f.activo).map(f=>{
+    const scs=f.subcuentas.map(s=>'<div class="sc-item"><div class="sc-label">Subcuenta '+s.numero+'</div><div class="sc-val">'+fmt(s.saldo_actual)+'</div><div class="sc-cuotas">'+s.cuotas.toFixed(4)+' cuotas</div></div>').join('');
+    return '<div class="fondo-box">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">'+
+        '<div><div style="font-size:15px;font-weight:600">'+f.nombre+'</div>'+
+        '<div style="font-size:12px;color:var(--muted)">'+f.administradora+'</div></div>'+
+        '<span class="badge b-inv">'+f.tipo+'</span></div>'+
+      '<div class="sc-grid">'+scs+'</div>'+
+      '<div class="vc-row"><span>Valor cuota</span><span style="font-weight:500">$'+f.valor_cuota_actual.toLocaleString('es-CL',{minimumFractionDigits:4})+'</span></div>'+
+      '<div class="vc-row"><span>Actualizado</span><span style="color:var(--muted)">'+f.fecha_valor_cuota+'</span></div>'+
+      '<div class="vc-row"><span style="font-weight:600">Saldo total</span><span style="font-weight:600;color:var(--green)">'+fmt(f.saldo_total)+'</span></div>'+
+    '</div>';
+  }).join('');
+}
+
+function renderMovs(){
+  const movs=[...INV.movimientos].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  if(!movs.length){document.getElementById('inv-movs').innerHTML='<div class="empty">Sin movimientos</div>';return;}
+  document.getElementById('inv-movs').innerHTML=movs.map(m=>{
+    const isR=m.tipo=='Rescate',isT=m.tipo=='Traspaso';
+    const cls=isR?'b-res':isT?'b-tra':'b-inv';
+    return '<div class="mov-item">'+
+      '<div style="display:flex;flex-direction:column;gap:2px">'+
+        '<span style="font-weight:500">'+m.fondo+'</span>'+
+        '<span style="font-size:11px;color:var(--muted)">'+m.fecha+' - SC '+m.subcuenta+' - '+(m.cuotas>0?'+':'')+m.cuotas+' cuotas @ $'+m.valor_cuota+'</span>'+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:10px">'+
+        '<div style="text-align:right">'+
+          '<div style="font-weight:600;color:'+(isR?'var(--red)':'var(--green)')+'">'+(isR?'-':'+')+fmt(Math.abs(m.monto))+'</div>'+
+          '<span class="badge '+cls+'">'+m.tipo+'</span>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function toggleForm(){
+  document.getElementById('mov-form').classList.toggle('open');
+  if(document.getElementById('mov-form').classList.contains('open'))
+    document.getElementById('if-fecha').value=new Date().toISOString().split('T')[0];
+}
+
+async function guardarMov(){
+  const fecha=document.getElementById('if-fecha').value;
+  const tipo=document.getElementById('if-tipo').value;
+  const fondo=document.getElementById('if-fondo').value;
+  const sc=parseInt(document.getElementById('if-sc').value);
+  const monto=parseFloat(document.getElementById('if-monto').value)||0;
+  const cuotas=parseFloat(document.getElementById('if-cuotas').value)||0;
+  const vc=parseFloat(document.getElementById('if-vc').value)||0;
+  const sn=parseFloat(document.getElementById('if-saldo').value)||0;
+  if(!fecha||!monto){showMsg('mov-msg','Completa fecha y monto',false);return;}
+  INV.last_id=(INV.last_id||0)+1;
+  const montoFinal=tipo=='Rescate'?-monto:monto;
+  const cuotasFinal=tipo=='Rescate'?-cuotas:cuotas;
+  INV.movimientos.push({fecha,tipo,fondo,subcuenta:sc,cuotas:cuotasFinal,valor_cuota:vc,monto:montoFinal});
+  if(sn){
+    const f=INV.fondos.find(x=>x.nombre==fondo);
+    if(f){
+      f.saldo_total=sn;f.fecha_valor_cuota=fecha;
+      INV.resumen.fecha_actualizacion=fecha;
+      INV.resumen.saldo_actual=sn;
+      const s=f.subcuentas.find(x=>x.numero==sc);
+      if(s){
+        if(tipo=='Inversion'){s.cuotas+=cuotas;s.saldo_actual+=monto;}
+        else if(tipo=='Rescate'){s.cuotas-=cuotas;s.saldo_actual-=monto;}
+      }
+    }
+  }
+  try{
+    await saveINV();renderAll();toggleForm();showMsg('mov-msg','Guardado',true);
+  }catch(e){showMsg('mov-msg','Error: '+e.message,false);}
+}
+
+function showMsg(id,m,ok){const e=document.getElementById(id);e.textContent=m;e.className='msg '+(ok?'ok':'err');setTimeout(()=>{e.className='msg';},3000);}
+
+window.addEventListener('load',()=>{
+  gc=loadCfg();
+  if(!gc){
+    document.getElementById('load-msg').textContent='';
+    document.getElementById('load-err').textContent='No hay configuracion guardada. Vuelve al inicio de la app.';
+    document.getElementById('load-err').style.display='block';
+    document.getElementById('load-btns').style.display='flex';
+  } else {
+    startApp();
+  }
+});
+</script>
+</body>
+</html>
