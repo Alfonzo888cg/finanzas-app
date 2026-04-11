@@ -486,6 +486,7 @@ async function loadTDC(){
   }
 }
   async function loadINV(){
+    console.log("LOAD INV START");
     const m = await ghGet('inv_data.json');
     if(m){
       sha_inv = m.sha;
@@ -609,6 +610,7 @@ async function delCuota(id){
 }
 function showMsg(id,m,ok){const e=document.getElementById(id);e.textContent=m;e.className='msg '+(ok?'ok':'err');setTimeout(()=>{e.className='msg';},3000);}
 function renderINV(){
+  console.log("RENDER INV:", INV);
   renderInvResumen();
   renderInvFondos();
   renderInvMovs();
