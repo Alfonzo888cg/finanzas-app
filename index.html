@@ -348,10 +348,19 @@ function setType(t){
   document.getElementById('f-cat').innerHTML=D.categories[t=='Ingreso'?'ingreso':'gasto'].map(c=>'<option>'+c+'</option>').join('');
 }
 function showTab(n){
-  ['dashboard','nuevo','historial','tdc','inv'].forEach((t,i)=>{
-    document.getElementById('tab-'+t).classList.toggle('active',t==n);
-    document.querySelectorAll('.tab')[i].classList.toggle('active',t==n);
+  // Oculta todas las secciones
+  document.querySelectorAll('.section').forEach(sec=>{
+    sec.classList.remove('active');
   });
+  // Muestra la seleccionada
+  document.getElementById('tab-'+n).classList.add('active');
+  // Manejo de tabs (botones)
+  document.querySelectorAll('.tab').forEach(btn=>{
+    btn.classList.remove('active');
+  });
+  // Activa el botón clickeado
+  event?.target?.classList.add('active');
+  // Lógica
   if(n=='historial'){
     fillHCats();
     renderHist();
