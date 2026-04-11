@@ -367,7 +367,7 @@ function showTab(n){
     }
   }
   if(n=='inv'){
-    if(!INV){
+    if(!INV || !INV.fondos){
       loadINV().then(()=>renderINV());
     } else {
       renderINV();
