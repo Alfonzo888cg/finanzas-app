@@ -349,17 +349,31 @@ function setType(t){
   document.getElementById('f-cat').innerHTML=D.categories[t=='Ingreso'?'ingreso':'gasto'].map(c=>'<option>'+c+'</option>').join('');
 }
 function showTab(n){
-  if(n=='inv'){
-  if(!INV) loadINV().then(()=>renderINV());
-  else renderINV();
-  }
-  ['dashboard','nuevo','historial','tdc'].forEach((t,i)=>{
+  ['dashboard','nuevo','historial','tdc','inv'].forEach((t,i)=>{
     document.getElementById('tab-'+t).classList.toggle('active',t==n);
     document.querySelectorAll('.tab')[i].classList.toggle('active',t==n);
   });
-  if(n=='historial'){fillHCats();renderHist();}
-  if(n=='dashboard')renderDash();
-  if(n=='tdc'){if(!T)loadTDC().then(()=>renderTDC());else renderTDC();}
+  if(n=='historial'){
+    fillHCats();
+    renderHist();
+  }
+  if(n=='dashboard'){
+    renderDash();
+  }
+  if(n=='tdc'){
+    if(!T){
+      loadTDC().then(()=>renderTDC());
+    } else {
+      renderTDC();
+    }
+  }
+  if(n=='inv'){
+    if(!INV){
+      loadINV().then(()=>renderINV());
+    } else {
+      renderINV();
+    }
+  }
 }
 function toggleXform(id){
   document.getElementById(id).classList.toggle('open');
