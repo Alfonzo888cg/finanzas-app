@@ -522,9 +522,14 @@ function renderTDCMes(){
   document.getElementById('tdc-mes-lbl').textContent=MF[m-1]+' '+y;
   const cq=getCuotasMes(tdcMes);
   const el=document.getElementById('tdc-mes-detail');
-  if(!cq.length){el.innerHTML='<div class="empty">Sin cuotas este mes</div>';return;}
+  if(!cq.length){
+    el.innerHTML='<div class="empty">Sin cuotas este mes</div>';
+    return;
+  }
   const rg=(items,lbl,col)=>{
-    if(!items.length)return'';
+    if(!items.length){
+      return'';
+    }
     let g='<div style="font-size:11px;font-weight:500;color:'+col+';margin:8px 0 4px;text-transform:uppercase;letter-spacing:.5px">'+lbl+'</div>';
     let sub=0;
     items.forEach(c=>{sub+=c.mm;g+='<div class="cuota-row"><span>'+c.descripcion+'</span><span style="font-weight:500">'+fmt(c.mm)+'</span></div>';});
