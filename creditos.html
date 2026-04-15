@@ -71,6 +71,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
     <div class="form-grid">
       <div class="form-group">
+        <label>Credito a amortizar</label>
+        <select id="credito-select">
+          <option value="hipotecario">Hipotecario - Scotiabank</option>
+          <option value="consumo">Consumo - BCI</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>Monto prepago (CLP)</label>
         <input type="number" id="prepago" placeholder="Monto prepago (CLP)">
       </div>
@@ -100,7 +107,7 @@ const creditoHipotecario={
   cuotaUF:12.9883,
   tasa:4.98,
   totalCuotas:360,
-  pagadas:8
+  pagadasBase:8
 };
 
 const creditoConsumo={
@@ -109,8 +116,80 @@ const creditoConsumo={
   cuotaCLP:307363,
   tasa:1.09,
   totalCuotas:48,
-  pagadas:14
+  pagadasBase:14
 };
+
+let gc=null;
+let txData=null;
+const FECHA_INICIO_CREDITOS="2026-04-15";
+
+function getCreditoSeleccionado(){
+  const tipo=document.getElementById("credito-select").value;
+  if(tipo==="hipotecario"){
+    return {
+      nombre:`Hipotecario - ${creditoHipotecario.banco}`,
+      moneda:"UF",
+      saldo:creditoHipotecario.saldoUF,
+      cuota:creditoHipotecario.cuotaUF,
+      tasaMensual:creditoHipotecario.tasa/100/12,
+      mesesRestantes:creditoHipotecario.totalCuotas-getPagadasActuales("hipotecario")
+    };
+  }
+  return {
+    nombre:`Consumo - ${creditoConsumo.banco}`,
+    moneda:"CLP",
+    saldo:creditoConsumo.saldoCLP,
+    cuota:creditoConsumo.cuotaCLP,
+    tasaMensual:creditoConsumo.tasa/100,
+    mesesRestantes:creditoConsumo.totalCuotas-getPagadasActuales("consumo")
+  };
+}
+
+function loadCfg(){try{return JSON.parse(localStorage.getItem("gh_cfg"));}catch{return null;}}
+function gh(p){return "https://api.github.com/repos/"+gc.user+"/"+gc.repo+"/contents/"+p;}
+function ghH(){return {"Authorization":"token "+gc.token,"Content-Type":"application/json","Accept":"application/vnd.github.v3+json"};}
+async function ghGet(file){
+  const r=await fetch(gh(file),{headers:ghH()});
+  if(r.status===404)return null;
+  if(r.status===401)throw new Error("Token invalido");
+  if(!r.ok)throw new Error("GitHub "+r.status+" al leer "+file);
+  return r.json();
+}
+function decodeGitHubJsonFile(content){
+  const binary=atob(content.replace(/\n/g,""));
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  return JSON.parse(new TextDecoder("utf-8").decode(bytes));
+}
+function norm(s){
+  return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+}
+function contarPagosCategoria(nombreCategoria){
+  if(!txData?.transactions)return 0;
+  return txData.transactions.filter(t=>
+    t.type==="Gasto" &&
+    t.date>=FECHA_INICIO_CREDITOS &&
+    norm(t.category)===norm(nombreCategoria)
+  ).length;
+}
+function getPagadasActuales(tipo){
+  if(tipo==="hipotecario"){
+    return Math.min(creditoHipotecario.totalCuotas,creditoHipotecario.pagadasBase+contarPagosCategoria("Hipotecario"));
+  }
+  return Math.min(creditoConsumo.totalCuotas,creditoConsumo.pagadasBase+contarPagosCategoria("Credito de consumo"));
+}
+async function cargarPagosCreditos(){
+  try{
+    gc=loadCfg();
+    if(!gc)return;
+    const dataFile=await ghGet("data.json");
+    if(!dataFile)return;
+    txData=decodeGitHubJsonFile(dataFile.content);
+    render();
+  }catch(e){
+    console.warn("No se pudo sincronizar el avance de creditos:",e.message);
+  }
+}
 
 async function cargarUF(){
   try{
@@ -131,6 +210,8 @@ function render(){
 
   const saldoHip=creditoHipotecario.saldoUF*uf;
   const cuotaHip=creditoHipotecario.cuotaUF*uf;
+  const pagadasHip=getPagadasActuales("hipotecario");
+  const pagadasConsumo=getPagadasActuales("consumo");
 
   document.getElementById("resumen").innerHTML=`
     <div class="metrics">
@@ -145,7 +226,7 @@ function render(){
       <div class="detail-item"><div class="detail-label">Saldo</div><div class="detail-value">${clp(saldoHip)}</div></div>
       <div class="detail-item"><div class="detail-label">Dividendo</div><div class="detail-value">${clp(cuotaHip)}</div></div>
       <div class="detail-item"><div class="detail-label">Tasa</div><div class="detail-value">${creditoHipotecario.tasa}%</div></div>
-      <div class="detail-item"><div class="detail-label">Progreso</div><div class="detail-value">${creditoHipotecario.pagadas}/${creditoHipotecario.totalCuotas}</div></div>
+      <div class="detail-item"><div class="detail-label">Progreso</div><div class="detail-value">${pagadasHip}/${creditoHipotecario.totalCuotas}</div></div>
     </div>
   `;
 
@@ -155,7 +236,7 @@ function render(){
       <div class="detail-item"><div class="detail-label">Saldo</div><div class="detail-value">${clp(creditoConsumo.saldoCLP)}</div></div>
       <div class="detail-item"><div class="detail-label">Cuota</div><div class="detail-value">${clp(creditoConsumo.cuotaCLP)}</div></div>
       <div class="detail-item"><div class="detail-label">Tasa</div><div class="detail-value">${creditoConsumo.tasa}% mensual</div></div>
-      <div class="detail-item"><div class="detail-label">Progreso</div><div class="detail-value">${creditoConsumo.pagadas}/${creditoConsumo.totalCuotas}</div></div>
+      <div class="detail-item"><div class="detail-label">Progreso</div><div class="detail-value">${pagadasConsumo}/${creditoConsumo.totalCuotas}</div></div>
     </div>
   `;
 }
@@ -181,34 +262,40 @@ function simularPrepagoPro(){
   const uf=parseFloat(document.getElementById("uf").value);
   const prepago=parseFloat(document.getElementById("prepago").value);
   const modo=document.getElementById("modo").value;
+  const credito=getCreditoSeleccionado();
 
-  if(!uf||!prepago)return alert("Completa datos");
+  if(!prepago)return alert("Completa datos");
+  if(credito.moneda==="UF"&&!uf)return alert("Completa el valor UF");
 
-  const tasa=0.0498/12;
-  const saldo=creditoHipotecario.saldoUF;
-  const cuota=creditoHipotecario.cuotaUF;
-  const mesesRest=creditoHipotecario.totalCuotas-creditoHipotecario.pagadas;
-  const nuevoSaldo=saldo-(prepago/uf);
+  const prepagoEnUnidad=credito.moneda==="UF" ? prepago/uf : prepago;
+  const nuevoSaldo=credito.saldo-prepagoEnUnidad;
+  if(nuevoSaldo<=0)return alert("El prepago supera el saldo del credito");
 
-  const orig=simularCredito(saldo,cuota,tasa);
-  let nuevo,nuevaCuota=cuota;
+  const orig=simularCredito(credito.saldo,credito.cuota,credito.tasaMensual);
+  let nuevo,nuevaCuota=credito.cuota;
 
   if(modo==="plazo"){
-    nuevo=simularCredito(nuevoSaldo,cuota,tasa);
+    nuevo=simularCredito(nuevoSaldo,credito.cuota,credito.tasaMensual);
   }else{
-    nuevaCuota=calcularNuevaCuota(nuevoSaldo,tasa,mesesRest);
-    nuevo=simularCredito(nuevoSaldo,nuevaCuota,tasa);
+    nuevaCuota=calcularNuevaCuota(nuevoSaldo,credito.tasaMensual,credito.mesesRestantes);
+    nuevo=simularCredito(nuevoSaldo,nuevaCuota,credito.tasaMensual);
   }
 
-  const ahorro=(orig.intereses-nuevo.intereses)*uf;
+  const factorMoneda=credito.moneda==="UF" ? uf : 1;
+  const ahorro=(orig.intereses-nuevo.intereses)*factorMoneda;
+  const saldoOriginal=credito.saldo*factorMoneda;
+  const saldoNuevo=nuevoSaldo*factorMoneda;
 
   const resultado=document.getElementById("resultado-prepago");
   resultado.style.display="block";
   resultado.innerHTML=`
+    <p><strong>Credito:</strong> ${credito.nombre}</p>
+    <p><strong>Saldo actual:</strong> ${clp(saldoOriginal)}</p>
+    <p><strong>Saldo despues del prepago:</strong> ${clp(saldoNuevo)}</p>
     <p><strong>Antes:</strong> ${orig.meses} meses</p>
     <p><strong>Despues:</strong> ${nuevo.meses} meses</p>
     <p><strong>Ahorro:</strong> ${clp(ahorro)}</p>
-    ${modo==="cuota"?`<p><strong>Nueva cuota:</strong> ${clp(nuevaCuota*uf)}</p>`:""}
+    ${modo==="cuota"?`<p><strong>Nueva cuota:</strong> ${clp(nuevaCuota*factorMoneda)}</p>`:""}
   `;
 
   renderChart(orig,nuevo);
