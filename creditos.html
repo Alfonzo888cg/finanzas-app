@@ -1,0 +1,238 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Creditos - Finanzas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--bg:#f7f7f5;--surface:#fff;--border:rgba(0,0,0,0.1);--text:#1a1a1a;--muted:#666;--green:#1D9E75;--green-bg:#E1F5EE;--red:#D85A30;--red-bg:#FAECE7;--blue:#185FA5;--blue-bg:#E6F1FB;--radius:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+#app{max-width:900px;margin:0 auto;padding:1rem}
+.app-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+.header-left{display:flex;align-items:center;gap:12px}
+.btn-back{padding:7px 14px;font-size:13px;border:1px solid var(--border);background:var(--surface);border-radius:8px;cursor:pointer;color:var(--text);text-decoration:none;display:inline-block}
+.app-header h1{font-size:20px;font-weight:600}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1rem}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.card-title{font-size:13px;font-weight:500;color:var(--muted)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.form-group input,.form-group select{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--bg);color:var(--text)}
+.btn-save{padding:10px 28px;background:var(--text);color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem}
+.metric-label{font-size:12px;color:var(--muted);margin-bottom:4px}
+.metric-value{font-size:20px;font-weight:600}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detail-item{background:var(--bg);border-radius:8px;padding:.85rem 1rem}
+.detail-label{font-size:12px;color:var(--muted);margin-bottom:4px}
+.detail-value{font-size:16px;font-weight:600}
+.result-box{background:var(--blue-bg);border-radius:8px;padding:1rem;color:var(--blue);line-height:1.6}
+#grafico-prepago{margin-top:12px;max-height:280px}
+@media(max-width:580px){
+  .app-header{flex-direction:column;align-items:flex-start}
+  .metrics,.detail-grid,.form-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="app-header">
+    <div class="header-left">
+      <a href="index.html" class="btn-back">&#8592; Volver</a>
+      <h1>Creditos</h1>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Valor UF</span>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>UF actual</label>
+        <input type="number" id="uf">
+      </div>
+      <div class="form-group" style="display:flex;align-items:flex-end">
+        <button class="btn-save" onclick="cargarUF()">Actualizar UF</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="resumen"></div>
+  <div class="card" id="hipotecario"></div>
+  <div class="card" id="consumo"></div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Simulador prepago</span>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Monto prepago (CLP)</label>
+        <input type="number" id="prepago" placeholder="Monto prepago (CLP)">
+      </div>
+      <div class="form-group">
+        <label>Modo</label>
+        <select id="modo">
+          <option value="plazo">Reducir plazo</option>
+          <option value="cuota">Reducir dividendo</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn-save" style="margin-top:1rem" onclick="simularPrepagoPro()">Simular</button>
+    <div class="result-box" id="resultado-prepago" style="display:none;margin-top:1rem"></div>
+    <div class="card" style="margin-top:1rem;margin-bottom:0">
+      <div class="card-header">
+        <span class="card-title">Comparacion</span>
+      </div>
+      <canvas id="grafico-prepago"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+const creditoHipotecario={
+  banco:"Scotiabank",
+  saldoUF:2235.4922,
+  cuotaUF:12.9883,
+  tasa:4.98,
+  totalCuotas:360,
+  pagadas:8
+};
+
+const creditoConsumo={
+  banco:"BCI",
+  saldoCLP:8667989,
+  cuotaCLP:307363,
+  tasa:1.09,
+  totalCuotas:48,
+  pagadas:14
+};
+
+async function cargarUF(){
+  try{
+    const res=await fetch("https://mindicador.cl/api/uf");
+    const data=await res.json();
+    document.getElementById("uf").value=data.serie[0].valor;
+    render();
+  }catch{
+    alert("Error cargando UF");
+  }
+}
+
+function clp(n){return "$"+Math.round(n).toLocaleString("es-CL");}
+
+function render(){
+  const uf=parseFloat(document.getElementById("uf").value);
+  if(!uf)return;
+
+  const saldoHip=creditoHipotecario.saldoUF*uf;
+  const cuotaHip=creditoHipotecario.cuotaUF*uf;
+
+  document.getElementById("resumen").innerHTML=`
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Deuda total</div><div class="metric-value">${clp(saldoHip+creditoConsumo.saldoCLP)}</div></div>
+      <div class="metric"><div class="metric-label">Carga mensual</div><div class="metric-value">${clp(cuotaHip+creditoConsumo.cuotaCLP)}</div></div>
+    </div>
+  `;
+
+  document.getElementById("hipotecario").innerHTML=`
+    <div class="card-header"><span class="card-title">Credito hipotecario - ${creditoHipotecario.banco}</span></div>
+    <div class="detail-grid">
+      <div class="detail-item"><div class="detail-label">Saldo</div><div class="detail-value">${clp(saldoHip)}</div></div>
+      <div class="detail-item"><div class="detail-label">Dividendo</div><div class="detail-value">${clp(cuotaHip)}</div></div>
+      <div class="detail-item"><div class="detail-label">Tasa</div><div class="detail-value">${creditoHipotecario.tasa}%</div></div>
+      <div class="detail-item"><div class="detail-label">Progreso</div><div class="detail-value">${creditoHipotecario.pagadas}/${creditoHipotecario.totalCuotas}</div></div>
+    </div>
+  `;
+
+  document.getElementById("consumo").innerHTML=`
+    <div class="card-header"><span class="card-title">Credito de consumo - ${creditoConsumo.banco}</span></div>
+    <div class="detail-grid">
+      <div class="detail-item"><div class="detail-label">Saldo</div><div class="detail-value">${clp(creditoConsumo.saldoCLP)}</div></div>
+      <div class="detail-item"><div class="detail-label">Cuota</div><div class="detail-value">${clp(creditoConsumo.cuotaCLP)}</div></div>
+      <div class="detail-item"><div class="detail-label">Tasa</div><div class="detail-value">${creditoConsumo.tasa}% mensual</div></div>
+      <div class="detail-item"><div class="detail-label">Progreso</div><div class="detail-value">${creditoConsumo.pagadas}/${creditoConsumo.totalCuotas}</div></div>
+    </div>
+  `;
+}
+
+function simularCredito(saldo,cuota,tasa){
+  let meses=0,intereses=0;
+  while(saldo>0&&meses<360){
+    const i=saldo*tasa;
+    saldo-=(cuota-i);
+    intereses+=i;
+    meses++;
+  }
+  return{meses,intereses};
+}
+
+function calcularNuevaCuota(saldo,tasa,meses){
+  return saldo*(tasa/(1-Math.pow(1+tasa,-meses)));
+}
+
+let chart;
+
+function simularPrepagoPro(){
+  const uf=parseFloat(document.getElementById("uf").value);
+  const prepago=parseFloat(document.getElementById("prepago").value);
+  const modo=document.getElementById("modo").value;
+
+  if(!uf||!prepago)return alert("Completa datos");
+
+  const tasa=0.0498/12;
+  const saldo=creditoHipotecario.saldoUF;
+  const cuota=creditoHipotecario.cuotaUF;
+  const mesesRest=creditoHipotecario.totalCuotas-creditoHipotecario.pagadas;
+  const nuevoSaldo=saldo-(prepago/uf);
+
+  const orig=simularCredito(saldo,cuota,tasa);
+  let nuevo,nuevaCuota=cuota;
+
+  if(modo==="plazo"){
+    nuevo=simularCredito(nuevoSaldo,cuota,tasa);
+  }else{
+    nuevaCuota=calcularNuevaCuota(nuevoSaldo,tasa,mesesRest);
+    nuevo=simularCredito(nuevoSaldo,nuevaCuota,tasa);
+  }
+
+  const ahorro=(orig.intereses-nuevo.intereses)*uf;
+
+  const resultado=document.getElementById("resultado-prepago");
+  resultado.style.display="block";
+  resultado.innerHTML=`
+    <p><strong>Antes:</strong> ${orig.meses} meses</p>
+    <p><strong>Despues:</strong> ${nuevo.meses} meses</p>
+    <p><strong>Ahorro:</strong> ${clp(ahorro)}</p>
+    ${modo==="cuota"?`<p><strong>Nueva cuota:</strong> ${clp(nuevaCuota*uf)}</p>`:""}
+  `;
+
+  renderChart(orig,nuevo);
+}
+
+function renderChart(a,b){
+  const ctx=document.getElementById("grafico-prepago");
+  if(chart)chart.destroy();
+
+  chart=new Chart(ctx,{
+    type:"bar",
+    data:{
+      labels:["Antes","Despues"],
+      datasets:[
+        {label:"Meses",data:[a.meses,b.meses],backgroundColor:"#5DCAA5"},
+        {label:"Intereses",data:[a.intereses,b.intereses],backgroundColor:"#F0997B"}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:true}
+  });
+}
+
+document.getElementById("uf").value=37000;
+render();
+</script>
+</body>
+</html>
