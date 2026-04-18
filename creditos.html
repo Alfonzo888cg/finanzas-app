@@ -125,11 +125,12 @@ const FECHA_INICIO_CREDITOS="2026-04-15";
 
 function getCreditoSeleccionado(){
   const tipo=document.getElementById("credito-select").value;
+  const uf=parseFloat(document.getElementById("uf").value)||0;
   if(tipo==="hipotecario"){
     return {
       nombre:`Hipotecario - ${creditoHipotecario.banco}`,
       moneda:"UF",
-      saldo:creditoHipotecario.saldoUF,
+      saldo:getSaldoActual("hipotecario",uf),
       cuota:creditoHipotecario.cuotaUF,
       tasaMensual:creditoHipotecario.tasa/100/12,
       mesesRestantes:creditoHipotecario.totalCuotas-getPagadasActuales("hipotecario")
@@ -138,7 +139,7 @@ function getCreditoSeleccionado(){
   return {
     nombre:`Consumo - ${creditoConsumo.banco}`,
     moneda:"CLP",
-    saldo:creditoConsumo.saldoCLP,
+    saldo:getSaldoActual("consumo",uf),
     cuota:creditoConsumo.cuotaCLP,
     tasaMensual:creditoConsumo.tasa/100,
     mesesRestantes:creditoConsumo.totalCuotas-getPagadasActuales("consumo")
@@ -177,11 +178,34 @@ function contarPagosCategoria(nombreCategoria){
     categorias.includes(norm(t.category))
   ).length;
 }
+function sumarPagosCategoria(nombreCategoria){
+  if(!txData?.transactions)return 0;
+  const aliases={
+    hipotecario:["Hipotecario"],
+    consumo:["Creditos Consumo","Credito de consumo","Créditos Consumo","Crédito de consumo"]
+  };
+  const categorias=(aliases[nombreCategoria]||[nombreCategoria]).map(norm);
+  return txData.transactions
+    .filter(t=>
+      t.type==="Gasto" &&
+      t.date>=FECHA_INICIO_CREDITOS &&
+      categorias.includes(norm(t.category))
+    )
+    .reduce((sum,t)=>sum+(Number(t.amount)||0),0);
+}
 function getPagadasActuales(tipo){
   if(tipo==="hipotecario"){
     return Math.min(creditoHipotecario.totalCuotas,creditoHipotecario.pagadasBase+contarPagosCategoria("hipotecario"));
   }
   return Math.min(creditoConsumo.totalCuotas,creditoConsumo.pagadasBase+contarPagosCategoria("consumo"));
+}
+function getSaldoActual(tipo,uf){
+  if(tipo==="hipotecario"){
+    const pagosCLP=sumarPagosCategoria("hipotecario");
+    const pagosUF=uf?(pagosCLP/uf):0;
+    return Math.max(0,creditoHipotecario.saldoUF-pagosUF);
+  }
+  return Math.max(0,creditoConsumo.saldoCLP-sumarPagosCategoria("consumo"));
 }
 async function cargarPagosCreditos(){
   try{
@@ -213,14 +237,16 @@ function render(){
   const uf=parseFloat(document.getElementById("uf").value);
   if(!uf)return;
 
-  const saldoHip=creditoHipotecario.saldoUF*uf;
+  const saldoHipUF=getSaldoActual("hipotecario",uf);
+  const saldoConsumo=getSaldoActual("consumo",uf);
+  const saldoHip=saldoHipUF*uf;
   const cuotaHip=creditoHipotecario.cuotaUF*uf;
   const pagadasHip=getPagadasActuales("hipotecario");
   const pagadasConsumo=getPagadasActuales("consumo");
 
   document.getElementById("resumen").innerHTML=`
     <div class="metrics">
-      <div class="metric"><div class="metric-label">Deuda total</div><div class="metric-value">${clp(saldoHip+creditoConsumo.saldoCLP)}</div></div>
+      <div class="metric"><div class="metric-label">Deuda total</div><div class="metric-value">${clp(saldoHip+saldoConsumo)}</div></div>
       <div class="metric"><div class="metric-label">Carga mensual</div><div class="metric-value">${clp(cuotaHip+creditoConsumo.cuotaCLP)}</div></div>
     </div>
   `;
@@ -238,7 +264,7 @@ function render(){
   document.getElementById("consumo").innerHTML=`
     <div class="card-header"><span class="card-title">Credito de consumo - ${creditoConsumo.banco}</span></div>
     <div class="detail-grid">
-      <div class="detail-item"><div class="detail-label">Saldo</div><div class="detail-value">${clp(creditoConsumo.saldoCLP)}</div></div>
+      <div class="detail-item"><div class="detail-label">Saldo</div><div class="detail-value">${clp(saldoConsumo)}</div></div>
       <div class="detail-item"><div class="detail-label">Cuota</div><div class="detail-value">${clp(creditoConsumo.cuotaCLP)}</div></div>
       <div class="detail-item"><div class="detail-label">Tasa</div><div class="detail-value">${creditoConsumo.tasa}% mensual</div></div>
       <div class="detail-item"><div class="detail-label">Progreso</div><div class="detail-value">${pagadasConsumo}/${creditoConsumo.totalCuotas}</div></div>
