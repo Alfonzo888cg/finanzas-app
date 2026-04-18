@@ -166,17 +166,22 @@ function norm(s){
 }
 function contarPagosCategoria(nombreCategoria){
   if(!txData?.transactions)return 0;
+  const aliases={
+    hipotecario:["Hipotecario"],
+    consumo:["Creditos Consumo","Credito de consumo","Créditos Consumo","Crédito de consumo"]
+  };
+  const categorias=(aliases[nombreCategoria]||[nombreCategoria]).map(norm);
   return txData.transactions.filter(t=>
     t.type==="Gasto" &&
     t.date>=FECHA_INICIO_CREDITOS &&
-    norm(t.category)===norm(nombreCategoria)
+    categorias.includes(norm(t.category))
   ).length;
 }
 function getPagadasActuales(tipo){
   if(tipo==="hipotecario"){
-    return Math.min(creditoHipotecario.totalCuotas,creditoHipotecario.pagadasBase+contarPagosCategoria("Hipotecario"));
+    return Math.min(creditoHipotecario.totalCuotas,creditoHipotecario.pagadasBase+contarPagosCategoria("hipotecario"));
   }
-  return Math.min(creditoConsumo.totalCuotas,creditoConsumo.pagadasBase+contarPagosCategoria("Credito de consumo"));
+  return Math.min(creditoConsumo.totalCuotas,creditoConsumo.pagadasBase+contarPagosCategoria("consumo"));
 }
 async function cargarPagosCreditos(){
   try{
@@ -318,8 +323,11 @@ function renderChart(a,b){
   });
 }
 
-document.getElementById("uf").value=37000;
-render();
+window.addEventListener("load",()=>{
+  document.getElementById("uf").value=37000;
+  render();
+  cargarPagosCreditos();
+});
 </script>
 </body>
 </html>
