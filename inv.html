@@ -58,11 +58,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .msg{margin-top:8px;font-size:13px;padding:8px 12px;border-radius:6px;display:none}
 .msg.ok{background:var(--green-bg);color:var(--green);display:block}
 .msg.err{background:var(--red-bg);color:var(--red);display:block}
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:1rem 0}
+.summary-item{background:var(--bg);border-radius:8px;padding:10px 12px;border:1px solid var(--border)}
+.summary-label{font-size:11px;color:var(--muted)}
+.summary-value{font-size:16px;font-weight:600;margin-top:4px}
 @media(max-width:580px){
   .stats-grid{grid-template-columns:1fr 1fr}
   .stats-grid .stat:last-child{grid-column:span 2}
   .form-grid{grid-template-columns:1fr}
-  .sc-grid{grid-template-columns:1fr}
+  .sc-grid,.summary-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -95,7 +99,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="card">
     <div class="card-header">
       <span class="card-title">Fondos activos</span>
-      <button class="btn-sm" onclick="toggleForm()">+ Registrar movimiento</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-sm" onclick="toggleRegForm()">Regularizar</button>
+        <button class="btn-sm" onclick="toggleForm()">+ Registrar movimiento</button>
+      </div>
+    </div>
+    <div class="xform" id="reg-form">
+      <div class="form-grid">
+        <div class="form-group"><label>Desde</label><input type="date" id="rf-desde"></div>
+        <div class="form-group"><label>Hasta</label><input type="date" id="rf-hasta"></div>
+        <div class="form-group"><label>Inversiones del periodo ($)</label><input type="number" id="rf-inv" placeholder="0"></div>
+        <div class="form-group"><label>Rescates del periodo ($)</label><input type="number" id="rf-res" placeholder="0"></div>
+        <div class="form-group"><label>Saldo inicial ($)</label><input type="number" id="rf-sini" placeholder="0"></div>
+        <div class="form-group"><label>Saldo final ($)</label><input type="number" id="rf-sfin" placeholder="0"></div>
+        <div class="form-group"><label>Ganancia / Perdida manual ($)</label><input type="number" id="rf-gan" placeholder="0"></div>
+        <div class="form-group"><label>% Ganancia / Perdida manual</label><input type="number" id="rf-pct" placeholder="0" step="0.01"></div>
+        <div class="form-group"><label>Saldo subcuenta 0 ($)</label><input type="number" id="rf-sc0" placeholder="0"></div>
+        <div class="form-group"><label>Saldo subcuenta 1 ($)</label><input type="number" id="rf-sc1" placeholder="0"></div>
+        <div class="form-group"><label>Valor cuota actual</label><input type="number" id="rf-vc" placeholder="0" step="0.0001"></div>
+        <div class="form-group"><label>Fecha actualizacion</label><input type="date" id="rf-fecha"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:.75rem">
+        <button class="btn-save" onclick="guardarRegularizacion()">Guardar regularizacion</button>
+        <button class="btn-sec" onclick="toggleRegForm()">Cancelar</button>
+      </div>
+      <div class="msg" id="reg-msg"></div>
     </div>
     <div class="xform" id="mov-form">
       <div class="form-grid">
@@ -164,6 +192,35 @@ async function ghPut(file,data,sha,msg){
   return(await r.json()).content.sha;
 }
 
+function normalizarINVConReferencia(){
+  if(!INV?.resumen||INV.resumen.periodo_desde)return false;
+  const fondo=INV.fondos?.find(f=>f.nombre==='Itau Cartera Reserva');
+  if(!fondo)return false;
+  INV.resumen.periodo_desde='2026-01-01';
+  INV.resumen.periodo_hasta='2026-05-01';
+  INV.resumen.inversiones_periodo=1987537;
+  INV.resumen.rescates_periodo=0;
+  INV.resumen.saldo_inicial_periodo=1456663;
+  INV.resumen.saldo_final_periodo=3488078;
+  INV.resumen.ganancia_manual=43878;
+  INV.resumen.pct_manual=1.27;
+  INV.resumen.fecha_actualizacion='2026-05-02';
+  INV.resumen.saldo_actual=3638078;
+  const sc0=fondo.subcuentas.find(s=>s.numero===0);
+  const sc1=fondo.subcuentas.find(s=>s.numero===1);
+  if(sc0)sc0.saldo_actual=2833579;
+  if(sc1)sc1.saldo_actual=804499;
+  fondo.valor_cuota_actual=1277;
+  fondo.fecha_valor_cuota='2026-05-02';
+  fondo.saldo_total=3638078;
+  const existeMov=INV.movimientos?.some(m=>m.fecha==='2026-05-02'&&m.subcuenta===1&&m.monto===150000);
+  if(!existeMov){
+    INV.last_id=(INV.last_id||0)+1;
+    INV.movimientos.push({fecha:'2026-05-02',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:1,cuotas:0,valor_cuota:1277,monto:150000});
+  }
+  return true;
+}
+
 async function startApp(){
   document.getElementById('loading').style.display='flex';
   document.getElementById('load-err').style.display='none';
@@ -171,18 +228,22 @@ async function startApp(){
   document.getElementById('load-msg').textContent='Cargando inversiones...';
   try{
     const m=await ghGet('inv_data.json');
-    if(m){invSha=m.sha;INV=JSON.parse(atob(m.content.replace(/\n/g,'')));}
+    if(m){
+      invSha=m.sha;INV=JSON.parse(atob(m.content.replace(/\n/g,'')));
+      const migro=normalizarINVConReferencia();
+      if(migro)await saveINV();
+    }
     else{
       INV={
         fondos:[{
           id:'itau_reserva',nombre:'Itau Cartera Reserva',administradora:'Itau AGF',
           tipo:'Conservador',moneda:'CLP',
           subcuentas:[
-            {numero:0,cuotas:2211.7650,saldo_actual:2973364},
-            {numero:1,cuotas:511.4890,saldo_actual:652680}
+            {numero:0,cuotas:2211.7650,saldo_actual:2833579},
+            {numero:1,cuotas:511.4890,saldo_actual:804499}
           ],
-          valor_cuota_actual:1334.0902,fecha_valor_cuota:'2026-04-07',
-          saldo_total:3476044,activo:true
+          valor_cuota_actual:1277,fecha_valor_cuota:'2026-05-02',
+          saldo_total:3638078,activo:true
         }],
         movimientos:[
           {fecha:'2026-03-23',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:1,cuotas:393.7890,valor_cuota:1269.7154,monto:500000},
@@ -191,10 +252,24 @@ async function startApp(){
           {fecha:'2026-03-26',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:0,cuotas:58.1200,valor_cuota:1271.8517,monto:73920},
           {fecha:'2026-03-26',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:0,cuotas:778.5287,valor_cuota:1271.8517,monto:990173},
           {fecha:'2026-03-23',tipo:'Rescate',fondo:'Itau Cartera Crecimiento Defensivo',subcuenta:0,cuotas:-865.2641,valor_cuota:1430.2419,monto:-1237537},
-          {fecha:'2026-04-06',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:1,cuotas:117.7000,valor_cuota:1274.0,monto:150000}
+          {fecha:'2026-04-06',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:1,cuotas:117.7000,valor_cuota:1274.0,monto:150000},
+          {fecha:'2026-05-02',tipo:'Inversion',fondo:'Itau Cartera Reserva',subcuenta:1,cuotas:0,valor_cuota:1277,monto:150000}
         ],
-        resumen:{saldo_inicial_mar:2828101,saldo_actual:3476044,total_aportes_propios:650000,fecha_actualizacion:'2026-04-07'},
-        last_id:7
+        resumen:{
+          saldo_inicial_mar:1456663,
+          saldo_actual:3638078,
+          total_aportes_propios:0,
+          fecha_actualizacion:'2026-05-02',
+          periodo_desde:'2026-01-01',
+          periodo_hasta:'2026-05-01',
+          inversiones_periodo:1987537,
+          rescates_periodo:0,
+          saldo_inicial_periodo:1456663,
+          saldo_final_periodo:3488078,
+          ganancia_manual:43878,
+          pct_manual:1.27
+        },
+        last_id:8
       };
       invSha=await ghPut('inv_data.json',INV,null,'init inv');
     }
@@ -212,33 +287,54 @@ async function startApp(){
 
 async function saveINV(){
   setSync('syncing');
+  INV.resumen.saldo_actual=INV.fondos.filter(f=>f.activo).reduce((s,f)=>s+f.saldo_total,0);
   invSha=await ghPut('inv_data.json',INV,invSha,'update inv');
   setSync('ok');
-  INV.resumen.saldo_actual=INV.fondos.filter(f=>f.activo).reduce((s,f)=>s+f.saldo_total,0);
 }
 
 function renderAll(){renderStats();renderFondos();renderMovs();}
 
-function renderStats(){
+function getResumenInv(){
+  const r=INV.resumen||{};
   const tot=INV.fondos.filter(f=>f.activo).reduce((s,f)=>s+f.saldo_total,0);
+  const periodoInv=r.inversiones_periodo ?? 0;
+  const periodoRes=r.rescates_periodo ?? 0;
+  const saldoInicial=r.saldo_inicial_periodo ?? r.saldo_inicial_mar ?? 0;
+  const saldoFinal=r.saldo_final_periodo ?? tot;
+  const gan=(typeof r.ganancia_manual==='number')?r.ganancia_manual:(saldoFinal-saldoInicial-periodoInv+periodoRes);
+  const pct=(typeof r.pct_manual==='number')?r.pct_manual:(saldoInicial>0?((gan/saldoInicial)*100):0);
+  return {tot,periodoInv,periodoRes,saldoInicial,saldoFinal,gan,pct};
+}
+
+function renderStats(){
+  const {tot,gan,pct}=getResumenInv();
   const tc=INV.fondos.filter(f=>f.activo).reduce((s,f)=>s+f.subcuentas.reduce((ss,sc)=>ss+sc.cuotas,0),0);
-  const base=(INV.resumen.saldo_inicial_mar||0)+(INV.resumen.total_aportes_propios||0);
-  const gan=tot-(INV.resumen.saldo_inicial_mar||0)-(INV.resumen.total_aportes_propios||0);
-  const pct=base>0?((gan/base)*100).toFixed(2):0;
   document.getElementById('inv-stats').innerHTML=
     '<div class="stat"><div class="stat-label">Saldo total</div><div class="stat-value v-pos">'+fmt(tot)+'</div><div class="stat-sub">Al '+INV.resumen.fecha_actualizacion+'</div></div>'+
-    '<div class="stat"><div class="stat-label">Ganancia del mercado</div><div class="stat-value '+(gan>=0?'v-pos':'v-neg')+'">'+(gan>=0?'+':'')+fmt(gan)+'</div><div class="stat-sub">'+pct+'% desde feb 2026</div></div>'+
+    '<div class="stat"><div class="stat-label">Ganancia / Perdida</div><div class="stat-value '+(gan>=0?'v-pos':'v-neg')+'">'+(gan>=0?'+':'')+fmt(gan)+'</div><div class="stat-sub">'+pct.toFixed(2)+'% informado</div></div>'+
     '<div class="stat"><div class="stat-label">Total cuotas</div><div class="stat-value">'+tc.toFixed(4)+'</div><div class="stat-sub">Todos los fondos</div></div>';
 }
 
 function renderFondos(){
+  const r=INV.resumen||{};
   document.getElementById('inv-fondos').innerHTML=INV.fondos.filter(f=>f.activo).map(f=>{
     const scs=f.subcuentas.map(s=>'<div class="sc-item"><div class="sc-label">Subcuenta '+s.numero+'</div><div class="sc-val">'+fmt(s.saldo_actual)+'</div><div class="sc-cuotas">'+s.cuotas.toFixed(4)+' cuotas</div></div>').join('');
+    const resumenPeriodo = r.periodo_desde||r.periodo_hasta ? '<div class="summary-grid">'+
+      '<div class="summary-item"><div class="summary-label">Desde</div><div class="summary-value">'+(r.periodo_desde||'-')+'</div></div>'+
+      '<div class="summary-item"><div class="summary-label">Hasta</div><div class="summary-value">'+(r.periodo_hasta||'-')+'</div></div>'+
+      '<div class="summary-item"><div class="summary-label">Inversiones</div><div class="summary-value">'+fmt(r.inversiones_periodo||0)+'</div></div>'+
+      '<div class="summary-item"><div class="summary-label">Rescates</div><div class="summary-value">'+fmt(r.rescates_periodo||0)+'</div></div>'+
+      '<div class="summary-item"><div class="summary-label">Saldo inicial</div><div class="summary-value">'+fmt(r.saldo_inicial_periodo||0)+'</div></div>'+
+      '<div class="summary-item"><div class="summary-label">Saldo final</div><div class="summary-value">'+fmt(r.saldo_final_periodo||f.saldo_total)+'</div></div>'+
+      '<div class="summary-item"><div class="summary-label">Ganancia / Perdida</div><div class="summary-value">'+fmt(r.ganancia_manual||0)+'</div></div>'+
+      '<div class="summary-item"><div class="summary-label">% Ganancia / Perdida</div><div class="summary-value">'+((r.pct_manual||0).toFixed? r.pct_manual.toFixed(2) : Number(r.pct_manual||0).toFixed(2))+'%</div></div>'+
+    '</div>' : '';
     return '<div class="fondo-box">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">'+
         '<div><div style="font-size:15px;font-weight:600">'+f.nombre+'</div>'+
         '<div style="font-size:12px;color:var(--muted)">'+f.administradora+'</div></div>'+
         '<span class="badge b-inv">'+f.tipo+'</span></div>'+
+      resumenPeriodo+
       '<div class="sc-grid">'+scs+'</div>'+
       '<div class="vc-row"><span>Valor cuota</span><span style="font-weight:500">$'+f.valor_cuota_actual.toLocaleString('es-CL',{minimumFractionDigits:4})+'</span></div>'+
       '<div class="vc-row"><span>Actualizado</span><span style="color:var(--muted)">'+f.fecha_valor_cuota+'</span></div>'+
@@ -268,10 +364,66 @@ function renderMovs(){
   }).join('');
 }
 
+function cargarRegularizacionForm(){
+  const f=INV.fondos.find(x=>x.activo)||INV.fondos[0];
+  const r=INV.resumen||{};
+  document.getElementById('rf-desde').value=r.periodo_desde||'';
+  document.getElementById('rf-hasta').value=r.periodo_hasta||'';
+  document.getElementById('rf-inv').value=r.inversiones_periodo||'';
+  document.getElementById('rf-res').value=r.rescates_periodo||'';
+  document.getElementById('rf-sini').value=r.saldo_inicial_periodo||'';
+  document.getElementById('rf-sfin').value=r.saldo_final_periodo||f?.saldo_total||'';
+  document.getElementById('rf-gan').value=(typeof r.ganancia_manual==='number')?r.ganancia_manual:'';
+  document.getElementById('rf-pct').value=(typeof r.pct_manual==='number')?r.pct_manual:'';
+  document.getElementById('rf-sc0').value=f?.subcuentas.find(x=>x.numero===0)?.saldo_actual||'';
+  document.getElementById('rf-sc1').value=f?.subcuentas.find(x=>x.numero===1)?.saldo_actual||'';
+  document.getElementById('rf-vc').value=f?.valor_cuota_actual||'';
+  document.getElementById('rf-fecha').value=r.fecha_actualizacion||new Date().toISOString().split('T')[0];
+}
+
 function toggleForm(){
   document.getElementById('mov-form').classList.toggle('open');
   if(document.getElementById('mov-form').classList.contains('open'))
     document.getElementById('if-fecha').value=new Date().toISOString().split('T')[0];
+}
+
+function toggleRegForm(){
+  const el=document.getElementById('reg-form');
+  el.classList.toggle('open');
+  if(el.classList.contains('open'))cargarRegularizacionForm();
+}
+
+async function guardarRegularizacion(){
+  const f=INV.fondos.find(x=>x.activo)||INV.fondos[0];
+  if(!f){showMsg('reg-msg','No hay fondo activo para regularizar',false);return;}
+  const sc0=parseFloat(document.getElementById('rf-sc0').value)||0;
+  const sc1=parseFloat(document.getElementById('rf-sc1').value)||0;
+  f.subcuentas=f.subcuentas.map(sc=>{
+    if(sc.numero===0)return {...sc,saldo_actual:sc0};
+    if(sc.numero===1)return {...sc,saldo_actual:sc1};
+    return sc;
+  });
+  f.valor_cuota_actual=parseFloat(document.getElementById('rf-vc').value)||0;
+  f.fecha_valor_cuota=document.getElementById('rf-fecha').value||f.fecha_valor_cuota;
+  f.saldo_total=sc0+sc1;
+  INV.resumen.periodo_desde=document.getElementById('rf-desde').value||'';
+  INV.resumen.periodo_hasta=document.getElementById('rf-hasta').value||'';
+  INV.resumen.inversiones_periodo=parseFloat(document.getElementById('rf-inv').value)||0;
+  INV.resumen.rescates_periodo=parseFloat(document.getElementById('rf-res').value)||0;
+  INV.resumen.saldo_inicial_periodo=parseFloat(document.getElementById('rf-sini').value)||0;
+  INV.resumen.saldo_final_periodo=parseFloat(document.getElementById('rf-sfin').value)||f.saldo_total;
+  INV.resumen.ganancia_manual=parseFloat(document.getElementById('rf-gan').value)||0;
+  INV.resumen.pct_manual=parseFloat(document.getElementById('rf-pct').value)||0;
+  INV.resumen.fecha_actualizacion=document.getElementById('rf-fecha').value||new Date().toISOString().split('T')[0];
+  INV.resumen.saldo_actual=f.saldo_total;
+  try{
+    await saveINV();
+    renderAll();
+    toggleRegForm();
+    showMsg('reg-msg','Regularizacion guardada',true);
+  }catch(e){
+    showMsg('reg-msg','Error: '+e.message,false);
+  }
 }
 
 async function guardarMov(){
@@ -288,18 +440,20 @@ async function guardarMov(){
   const montoFinal=tipo=='Rescate'?-monto:monto;
   const cuotasFinal=tipo=='Rescate'?-cuotas:cuotas;
   INV.movimientos.push({fecha,tipo,fondo,subcuenta:sc,cuotas:cuotasFinal,valor_cuota:vc,monto:montoFinal});
-  if(sn){
-    const f=INV.fondos.find(x=>x.nombre==fondo);
-    if(f){
-      f.saldo_total=sn;f.fecha_valor_cuota=fecha;
-      INV.resumen.fecha_actualizacion=fecha;
-      INV.resumen.saldo_actual=sn;
-      const s=f.subcuentas.find(x=>x.numero==sc);
-      if(s){
-        if(tipo=='Inversion'){s.cuotas+=cuotas;s.saldo_actual+=monto;}
-        else if(tipo=='Rescate'){s.cuotas-=cuotas;s.saldo_actual-=monto;}
-      }
+  const f=INV.fondos.find(x=>x.nombre==fondo);
+  if(f){
+    const s=f.subcuentas.find(x=>x.numero==sc);
+    if(s){
+      if(tipo=='Inversion'){s.cuotas+=cuotas;s.saldo_actual+=monto;}
+      else if(tipo=='Rescate'){s.cuotas-=cuotas;s.saldo_actual-=monto;}
+      else if(tipo=='Traspaso'){s.cuotas+=cuotas;s.saldo_actual+=monto;}
     }
+    f.valor_cuota_actual=vc||f.valor_cuota_actual;
+    f.fecha_valor_cuota=fecha;
+    f.saldo_total=sn||f.subcuentas.reduce((sum,sub)=>sum+sub.saldo_actual,0);
+    INV.resumen.fecha_actualizacion=fecha;
+    INV.resumen.saldo_actual=f.saldo_total;
+    if(sn)INV.resumen.saldo_final_periodo=sn;
   }
   try{
     await saveINV();renderAll();toggleForm();showMsg('mov-msg','Guardado',true);
