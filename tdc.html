@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tarjetas de Credito</title>
+<link rel="stylesheet" href="tdc/tdc.css">
+</head>
+<body>
+<div id="loading">
+  <div id="loading-inner">
+    <div id="loading-msg">Conectando con GitHub...</div>
+    <div id="loading-error"></div>
+    <div id="loading-btns">
+      <button class="btn-save" onclick="showSetup()">Reconfigurar token</button>
+      <button class="btn-sec" onclick="startTDC()">Reintentar</button>
+    </div>
+  </div>
+</div>
+
+<div id="setup-screen">
+  <div class="setup-card">
+    <h2>Configuracion inicial</h2>
+    <p>Ingresa tu token de GitHub para sincronizar tus datos de tarjetas.</p>
+    <label>Token GitHub</label>
+    <input type="password" id="cfg-token" placeholder="ghp_xxxxxxxxxxxx">
+    <label>Usuario GitHub</label>
+    <input type="text" id="cfg-user" value="Alfonzo888cg">
+    <label>Repositorio de datos</label>
+    <input type="text" id="cfg-repo" value="finanzas-data">
+    <button class="btn-save full" onclick="saveConfig()">Guardar y continuar</button>
+    <p class="setup-note">El token se guarda solo en este dispositivo.</p>
+  </div>
+</div>
+
+<div id="app">
+  <div class="app-header">
+    <div>
+      <a class="back-link" href="index.html">&#8592; Finanzas personales</a>
+      <h1>Tarjetas de credito</h1>
+    </div>
+    <div class="sync-status"><div class="sync-dot" id="sdot"></div><span id="slabel">OK</span></div>
+  </div>
+
+  <div class="tdc-grid" id="tdc-cards"></div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Movimientos del periodo</span>
+      <input type="month" id="tdc-period" onchange="TDCApp.setPeriod(this.value)">
+    </div>
+    <div class="mes-nav">
+      <button onclick="TDCApp.prev()">&#8592;</button>
+      <span id="tdc-mes-lbl"></span>
+      <button onclick="TDCApp.next()">&#8594;</button>
+    </div>
+    <div id="tdc-mes-detail"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Costos de administracion</span></div>
+    <div id="admin-fees"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Proyeccion 9 meses</span></div>
+    <div class="timeline" id="tdc-tl"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Compras vigentes</span>
+      <button class="btn-sm" onclick="TDCApp.toggleForm()">+ Nueva compra</button>
+    </div>
+    <div class="xform" id="cf">
+      <div class="form-grid">
+        <div class="form-group"><label>Tarjeta</label><select id="cf-t"></select></div>
+        <div class="form-group"><label>Descripcion</label><input type="text" id="cf-d" placeholder="Ej: Televisor"></div>
+        <div class="form-group"><label>Monto por cuota ($)</label><input type="number" id="cf-m" placeholder="0" min="0"></div>
+        <div class="form-group"><label>N cuotas restantes</label><input type="number" id="cf-n" placeholder="1" min="1"></div>
+        <div class="form-group"><label>Mes primera cuota</label><input type="month" id="cf-mi"></div>
+        <div class="form-group"><label>Tipo</label><select id="cf-r"><option value="no">Cuotas fijas</option><option value="si">Cargo recurrente</option></select></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-save" onclick="TDCApp.savePurchase()">Guardar</button>
+        <button class="btn-sec" onclick="TDCApp.toggleForm()">Cancelar</button>
+      </div>
+      <div class="msg" id="cf-msg"></div>
+    </div>
+    <div id="purchase-list"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">Administracion de tarjetas</span></div>
+    <div id="card-settings"></div>
+  </div>
+</div>
+
+<script src="assets/shared.js"></script>
+<script src="tdc/tdc-domain.js"></script>
+<script src="tdc/tdc-store.js"></script>
+<script src="tdc/tdc-ui.js"></script>
+<script>
+let ghCfg=null;
+
+function showSetup(){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('setup-screen').style.display='flex';
+}
+
+function saveConfig(){
+  const cfg={
+    token:document.getElementById('cfg-token').value.trim(),
+    user:document.getElementById('cfg-user').value.trim(),
+    repo:document.getElementById('cfg-repo').value.trim()
+  };
+  if(!cfg.token||!cfg.user||!cfg.repo){alert('Completa todos los campos');return;}
+  AppShared.saveCfg(cfg);
+  ghCfg=cfg;
+  document.getElementById('setup-screen').style.display='none';
+  startTDC();
+}
+
+async function startTDC(){
+  document.getElementById('loading').style.display='flex';
+  document.getElementById('loading-error').style.display='none';
+  document.getElementById('loading-btns').style.display='none';
+  document.getElementById('loading-msg').textContent='Cargando tarjetas...';
+  try{
+    const client=AppShared.githubClient(ghCfg);
+    await TDCUi.init(client);
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='block';
+  }catch(e){
+    TDCUi.setSync('error');
+    document.getElementById('loading-msg').textContent='';
+    document.getElementById('loading-error').textContent=e.message;
+    document.getElementById('loading-error').style.display='block';
+    document.getElementById('loading-btns').style.display='flex';
+  }
+}
+
+window.addEventListener('load',()=>{
+  ghCfg=AppShared.loadCfg();
+  if(!ghCfg)showSetup();
+  else startTDC();
+});
+</script>
+</body>
+</html>

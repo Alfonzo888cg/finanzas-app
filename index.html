@@ -149,7 +149,7 @@ tr:last-child td{border-bottom:none}
     <button class="tab active" onclick="showTab('dashboard')">Dashboard</button>
     <button class="tab" onclick="showTab('nuevo')">Nuevo</button>
     <button class="tab" onclick="showTab('historial')">Historial</button>
-    <button class="tab" onclick="showTab('tdc')">Tarjetas</button>
+    <a href="tdc.html" style="flex:1;min-width:70px;padding:8px 4px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;border-radius:7px;color:var(--muted);white-space:nowrap;display:inline-block">Tarjetas &#8599;</a>
     <a href="inv.html" style="flex:1;min-width:70px;padding:8px 4px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;border-radius:7px;color:var(--muted);white-space:nowrap;display:inline-block">Inversiones &#8599;</a>
     <a href="creditos.html" style="flex:1;min-width:70px;padding:8px 4px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;border-radius:7px;color:var(--muted);white-space:nowrap;display:inline-block">Creditos &#8599;</a>
   </div>
@@ -199,34 +199,6 @@ tr:last-child td{border-bottom:none}
     <div class="card"><div class="tbl-wrap"><div id="hist-tbl"><div class="empty">Sin datos</div></div></div></div>
   </div>
 
-  <div id="tab-tdc" class="section">
-    <div class="tdc-grid" id="tdc-cards"></div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Cuotas del mes</span></div>
-      <div class="mes-nav"><button onclick="tdcPrev()">&#8592;</button><span id="tdc-mes-lbl"></span><button onclick="tdcNext()">&#8594;</button></div>
-      <div id="tdc-mes-detail"></div>
-    </div>
-    <div class="card"><div class="card-header"><span class="card-title">Proyeccion 9 meses</span></div><div class="timeline" id="tdc-tl"></div></div>
-    <div class="card">
-      <div class="card-header"><span class="card-title">Compras vigentes</span><button class="btn-sm" onclick="toggleXform('cf')">+ Nueva compra</button></div>
-      <div class="xform" id="cf">
-        <div class="form-grid">
-          <div class="form-group"><label>Tarjeta</label><select id="cf-t"><option>BCI</option><option>ITAU</option></select></div>
-          <div class="form-group"><label>Descripcion</label><input type="text" id="cf-d" placeholder="Ej: Televisor"></div>
-          <div class="form-group"><label>Monto por cuota ($)</label><input type="number" id="cf-m" placeholder="0"></div>
-          <div class="form-group"><label>N cuotas restantes</label><input type="number" id="cf-n" placeholder="1" min="1"></div>
-          <div class="form-group"><label>Mes primera cuota</label><input type="month" id="cf-mi"></div>
-          <div class="form-group"><label>Tipo</label><select id="cf-r"><option value="no">Cuotas fijas</option><option value="si">Cargo recurrente</option></select></div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:.75rem">
-          <button class="btn-save" onclick="saveCuota()">Guardar</button>
-          <button class="btn-sec" onclick="toggleXform('cf')">Cancelar</button>
-        </div>
-        <div class="msg" id="cf-msg"></div>
-      </div>
-      <div class="sec-sub">BCI</div><div class="plist" id="pl-bci"></div>
-      <div class="sec-sub" style="margin-top:1rem">ITAU</div><div class="plist" id="pl-itau"></div>
-    </div>
     <div id="tab-inv" class="section">
       <div class="card">
         <div class="card-header">
@@ -253,7 +225,7 @@ tr:last-child td{border-bottom:none}
 const MN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const MF=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 let txType='Ingreso';
-let D=null,T=null,INV=null;
+let D=null,INV=null;
 let sha_inv=null;
 let barC=null,pieC=null;
 let gc=null;
@@ -372,21 +344,7 @@ function showTab(n){
   if(n=='dashboard'){
     renderDash();
   }
-  if(n=='tdc'){
-    if(!T){
-      loadTDC().then(()=>renderTDC());
-    } else {
-      renderTDC();
-    }
   }
-  }
-function toggleXform(id){
-  document.getElementById(id).classList.toggle('open');
-  if(document.getElementById(id).classList.contains('open')&&id=='cf'){
-    const h=new Date();
-    document.getElementById('cf-mi').value=h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0');
-  }
-}
 function getTx(yr,mo,tp,ct){
   return D.transactions.filter(t=>{
     const[ty,tm]=t.date.split('-');
@@ -471,137 +429,6 @@ function exportXLS(){
   XLSX.writeFile(wb,'finanzas.xlsx');
 }
 
-// TDC
-let tdcMes='2026-04';
-async function loadTDC(){
-  const m = await ghGet('tdc_data.json');
-  if(m){
-    sha.t = m.sha;
-    T = JSON.parse(atob(m.content.replace(/\n/g,'')));
-  } else {
-    T = {
-      compras:[],
-      cupos:{
-        BCI:{nacional:4320000},
-        ITAU:{nacional:3400000}
-      },
-      last_id:0
-    };
-    sha.t = await ghPut('tdc_data.json',T,null,'init tdc');
-  }
-}
-  async function saveINV(){
-    setSync('syncing');
-    sha_inv = await ghPut('inv_data.json', INV, sha_inv, 'update inv');
-    setSync('ok');
-  }
-async function saveT(){setSync('syncing');sha.t=await ghPut('tdc_data.json',T,sha.t,'update tdc');setSync('ok');}
-function getCuotasMes(mes){return(T.compras||[]).filter(c=>c.activa).map(c=>{const q=(c.cuotas||[]).find(x=>x.mes==mes);return q?{...c,mm:q.monto}:null;}).filter(Boolean);}
-function cuotasRest(c){return(c.cuotas||[]).filter(q=>q.mes>=tdcMes).length;}
-function montoTot(c){return(c.cuotas||[]).filter(q=>q.mes>=tdcMes).reduce((s,q)=>s+q.monto,0);}
-function renderTDC(){renderTDCCards();renderTDCMes();renderTDCTL();renderTDCPend();}
-function renderTDCCards(){
-  let h='';
-  for(const t of['BCI','ITAU']){
-    const comp=(T.compras||[]).filter(c=>c.tarjeta==t&&c.activa);
-    const pend=comp.reduce((s,c)=>s+montoTot(c),0);
-    const mes=getCuotasMes(tdcMes).filter(c=>c.tarjeta==t).reduce((s,c)=>s+c.mm,0);
-    const cupo=T.cupos[t]?.nacional||0;
-    const pct=cupo?Math.min(100,Math.round(pend/cupo*100)):0;
-    h+='<div class="tdc-box"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:15px;font-weight:600">'+t+'</span><span class="badge b-'+t.toLowerCase()+'">'+t+'</span></div><div style="font-size:12px;color:var(--muted)">Cuota este mes</div><div style="font-size:20px;font-weight:600;color:'+(t=='BCI'?'#185FA5':'#D85A30')+'">'+fmt(mes)+'</div><div style="margin-top:8px;font-size:12px;color:var(--muted)">Deuda pendiente</div><div style="font-size:15px;font-weight:500">'+fmt(pend)+'</div><div class="cupo-bar"><div class="cupo-fill fill-'+t.toLowerCase()+'" style="width:'+pct+'%"></div></div><div class="cupo-labels"><span>Cupo: '+fmt(cupo)+'</span><span>'+pct+'% usado</span></div></div>';
-  }
-  document.getElementById('tdc-cards').innerHTML=h;
-}
-function renderTDCMes(){
-  const[y,m]=tdcMes.split('-').map(Number);
-  document.getElementById('tdc-mes-lbl').textContent=MF[m-1]+' '+y;
-  const cq=getCuotasMes(tdcMes);
-  const el=document.getElementById('tdc-mes-detail');
-  if(!cq.length){
-    el.innerHTML='<div class="empty">Sin cuotas este mes</div>';
-    return;
-  }
-  const rg=(items,lbl,col)=>{
-    if(!items.length){
-      return'';
-    }
-    let g='<div style="font-size:11px;font-weight:500;color:'+col+';margin:8px 0 4px;text-transform:uppercase;letter-spacing:.5px">'+lbl+'</div>';
-    let sub=0;
-    items.forEach(c=>{sub+=c.mm;g+='<div class="cuota-row"><span>'+c.descripcion+'</span><span style="font-weight:500">'+fmt(c.mm)+'</span></div>';});
-    g+='<div class="cuota-sub"><span>Subtotal</span><span style="color:'+col+'">'+fmt(sub)+'</span></div>';
-    return g;
-  };
-  let h=rg(cq.filter(c=>c.tarjeta=='BCI'),'BCI','#185FA5')+rg(cq.filter(c=>c.tarjeta=='ITAU'),'ITAU','#D85A30');
-  const tot=cq.reduce((s,c)=>s+c.mm,0);
-  h+='<div class="cuota-sub" style="font-size:15px;border-top:2px solid var(--border);margin-top:8px"><span>TOTAL</span><span>'+fmt(tot)+'</span></div>';
-  el.innerHTML=h;
-}
-function renderTDCTL(){
-  const[y,m]=tdcMes.split('-').map(Number);let h='';
-  for(let i=0;i<9;i++){
-    const d=new Date(y,m-1+i,1);
-    const ms=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    const bci=getCuotasMes(ms).filter(c=>c.tarjeta=='BCI').reduce((s,c)=>s+c.mm,0);
-    const itau=getCuotasMes(ms).filter(c=>c.tarjeta=='ITAU').reduce((s,c)=>s+c.mm,0);
-    h+='<div class="tcell'+(ms==tdcMes?' now':'')+'"><div class="tl">'+MN[d.getMonth()]+' '+String(d.getFullYear()).slice(2)+'</div><div class="tb">'+(bci?'$'+Math.round(bci/1000)+'k':'&#8212;')+'</div><div class="ti">'+(itau?'$'+Math.round(itau/1000)+'k':'&#8212;')+'</div><div class="tt">'+(bci+itau?'$'+Math.round((bci+itau)/1000)+'k':'&#8212;')+'</div></div>';
-  }
-  document.getElementById('tdc-tl').innerHTML=h;
-}
-function renderTDCPend(){
-  ['BCI','ITAU'].forEach(t=>{
-    const el=document.getElementById('pl-'+t.toLowerCase());
-    const comp=(T.compras||[]).filter(c=>c.tarjeta==t&&c.activa);
-    if(!comp.length){el.innerHTML='<div style="font-size:13px;color:var(--muted);padding:8px">Sin compras vigentes</div>';return;}
-    el.innerHTML=comp.map(c=>{
-      const rest=cuotasRest(c),tot=montoTot(c),cv=(c.cuotas[0]?.monto||0);
-      return `<div class="pitem">
-        <div style="display:flex;flex-direction:column;gap:2px">
-          <span style="font-weight:500">${c.descripcion}</span>
-          <span style="color:var(--muted);font-size:11px">
-            ${c.recurrente
-              ? 'Cargo recurrente'
-              : rest + ' cuota' + (rest!=1?'s':'') + ' restante' + (rest!=1?'s':'')
-            }
-        </span>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <div style="text-align:right">
-          <div style="font-weight:600">
-            ${fmt(cv)}<span style="font-size:10px;color:var(--muted)">/mes</span>
-          </div>
-          ${!c.recurrente
-            ? `<div style="font-size:11px;color:var(--muted)">Total: ${fmt(tot)}</div>`
-            : ''
-          }
-        </div>
-        <button class="btn-del" onclick="delCuota('${c.id}')">x</button>
-      </div>
-    </div>`;
-    }).join('');
-  });
-}
-function tdcPrev(){const[y,m]=tdcMes.split('-').map(Number);const d=new Date(y,m-2,1);tdcMes=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');renderTDCCards();renderTDCMes();renderTDCTL();}
-function tdcNext(){const[y,m]=tdcMes.split('-').map(Number);const d=new Date(y,m,1);tdcMes=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');renderTDCCards();renderTDCMes();renderTDCTL();}
-async function saveCuota(){
-  const tar=document.getElementById('cf-t').value;
-  const des=document.getElementById('cf-d').value.trim();
-  const mon=parseFloat(document.getElementById('cf-m').value);
-  const nc=parseInt(document.getElementById('cf-n').value);
-  const mi=document.getElementById('cf-mi').value;
-  const rec=document.getElementById('cf-r').value=='si';
-  if(!des||!mon||!nc||!mi){showMsg('cf-msg','Completa todos los campos',false);return;}
-  const[y,m]=mi.split('-').map(Number);
-  const cuotas=[];
-  for(let i=0;i<(rec?24:nc);i++){const d=new Date(y,m-1+i,1);cuotas.push({mes:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'),monto:Math.round(mon)});}
-  T.last_id=(T.last_id||0)+1;
-  T.compras.push({id:'c'+T.last_id,descripcion:des,tarjeta:tar,cuotas,activa:true,recurrente:rec});
-  await saveT();renderTDC();toggleXform('cf');showMsg('cf-msg','Guardado',true);
-}
-async function delCuota(id){
-  if(!confirm('Eliminar?'))return;
-  const c=T.compras.find(x=>x.id==id);if(c)c.activa=false;
-  await saveT();renderTDC();
-}
 function showMsg(id,m,ok){const e=document.getElementById(id);e.textContent=m;e.className='msg '+(ok?'ok':'err');setTimeout(()=>{e.className='msg';},3000);}
 </script>
 </body>
